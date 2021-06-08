@@ -1,0 +1,34 @@
+{
+    "name": "mitydigital/statamic-xml-sitemap",
+    "description": "An XML sitemap generator for a Statamic 3 site that includes all collections and related taxonomy pages.",
+    "type": "statamic-addon",
+    "keywords": [
+        "statamic",
+        "sitemap"
+    ],
+    "autoload": {
+        "psr-4": {
+            "MityDigital\\StatamicXmlSitemap\\": "src"
+        }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Marty Friedel"
+        }
+    ],
+    "require": {
+        "statamic/cms": "^3.0"
+    },
+    "extra": {
+        "statamic": {
+            "name": "Statamic XML Sitemap",
+            "description": "Adds a simple XML siteamp to a Statamic site."
+        },
+        "laravel": {
+            "providers": [
+                "MityDigital\\StatamicXmlSitemap\\ServiceProvider"
+            ]
+        }
+    }
+}

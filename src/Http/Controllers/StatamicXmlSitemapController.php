@@ -130,13 +130,18 @@ class StatamicXmlSitemapController extends Controller
                         // get the term mod date
                         $lastMod = $term->get('updated_at');
 
-                        // get the last modified entry
-                        $entryLastMod = $term->queryEntries()->orderBy('updated_at',
-                            'desc')->first()->get('updated_at');
+                        // get entries
+                        $termEntries = $term->queryEntries()->orderBy('updated_at', 'desc');
 
-                        // entry date is after the term's mod date
-                        if ($entryLastMod > $lastMod) {
-                            $lastMod = $entryLastMod;
+                        // if this term has entries, get the greater of the two updated_at timestamps
+                        if ($termEntries->count() > 0) {
+                            // get the last modified entry
+                            $entryLastMod = $termEntries->first()->get('updated_at');
+
+                            // entry date is after the term's mod date
+                            if ($entryLastMod > $lastMod) {
+                                $lastMod = $entryLastMod;
+                            }
                         }
 
                         $changeFreq = $term->get('meta_change_frequency');

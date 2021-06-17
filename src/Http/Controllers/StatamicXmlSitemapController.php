@@ -68,8 +68,8 @@ class StatamicXmlSitemapController extends Controller
                     if ($includeInSitemap === null) {
                         // get the default config, or return true by default
                         return config('statamic.sitemap.defaults.'.$entry->collection()->handle().'.include', true);
-                    } elseif ($includeInSitemap === false) {
-                        // explicitly set to false, so exclude
+                    } elseif ($includeInSitemap == "false" || $includeInSitemap === false) {
+                        // explicitly set to "false" or boolean false, so exclude
                         return false;
                     }
 

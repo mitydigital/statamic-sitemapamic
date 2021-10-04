@@ -111,8 +111,16 @@ class StatamicXmlSitemapController extends Controller
      */
     protected function loadCollectionTerms(): \Illuminate\Support\Collection
     {
-        return collect(array_keys(config('statamic.sitemap.defaults')))->map(function ($handle) {
+        return collect(config('statamic.sitemap.defaults'))->map(function ($properties, $handle) {
+
+            // if there is a property called includeTaxonomies, and its false (or the collection is disabled) then exclude it
+            // this has been added for backwards compatibility
+            if (isset($properties['includeTaxonomies']) && (!$properties['includeTaxonomies'] || !$properties['include'])) {
+                return false;
+            }
+
             $collection = Collection::findByHandle($handle);
+
             return $collection->taxonomies()->map->collection($collection)->flatMap(function (
                 $taxonomy
             ) {
@@ -166,6 +174,6 @@ class StatamicXmlSitemapController extends Controller
                     ]);
                 });
             });
-        })->flatten(1);
+        })->filter()->flatten(1);
     }
 }

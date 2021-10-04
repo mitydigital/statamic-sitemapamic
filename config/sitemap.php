@@ -24,19 +24,23 @@ return [
     |   Set "include" to true to either include or exclude without explicitly setting per article
     |   Frequency and Priority are standard for an XML sitemap
     |
+    | 'includeTaxonomies' enables (or disables) whether taxonomy URLs will be generated, if used,
+    | for the collection. Only applies to Collections that actually use Taxonomies.
+    |
     */
 
     'defaults' => [
-        'blog' => [
+        /*'blog' => [
             'include'   => true,
             'frequency' => 'weekly',
             'priority'  => '0.7'
-        ],
+        ],*/
 
         'pages' => [
-            'include'   => true,
-            'frequency' => 'yearly',
-            'priority'  => '0.5'
+            'include'   	    => true,
+            'frequency' 	    => 'yearly',
+            'priority'  	    => '0.5',
+            'includeTaxonomies' => true,
         ]
     ]
 ];

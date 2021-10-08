@@ -19,7 +19,8 @@ class StatamicXmlSitemapController extends Controller
      */
     public function show()
     {
-        $key = config('statamic.sitemap.cache') . '-' . config('app.url');
+        $key = config('statamic.sitemap.cache') . '-' . url('/');
+        Cache::forget($key);
         $xml = Cache::rememberForever($key, function () {
             $entries = collect()
                 ->merge($this->loadEntries())
@@ -48,7 +49,7 @@ class StatamicXmlSitemapController extends Controller
             ) {
                 // same site? if site is different, remove
                 // if the site url is "/" (i.e. the default), then include it anyway
-                if ($entry->site()->url() != '/' && $entry->site()->url() != config('app.url'))
+                if ($entry->site()->url() != '/' && $entry->site()->url() != url('/'))
                 {
                     return false;
                 }
@@ -123,7 +124,18 @@ class StatamicXmlSitemapController extends Controller
      */
     protected function loadCollectionTerms(): \Illuminate\Support\Collection
     {
-        return collect(config('statamic.sitemap.defaults'))->map(function ($properties, $handle) {
+        // get the current site key based on the url
+        $site = 'default';
+        foreach(config('statamic.sites.sites') as $key => $props)
+        {
+            if ($props['url'] == url('/'))
+            {
+                $site = $key;
+                break;
+            }
+        }
+
+        return collect(config('statamic.sitemap.defaults'))->map(function ($properties, $handle) use ($site) {
 
             // if there is a property called includeTaxonomies, and its false (or the collection is disabled) then exclude it
             // this has been added for backwards compatibility
@@ -135,9 +147,15 @@ class StatamicXmlSitemapController extends Controller
 
             return $collection->taxonomies()->map->collection($collection)->flatMap(function (
                 $taxonomy
-            ) {
-                return $taxonomy->queryTerms()->get()->filter(function ($term) {
+            ) use ($site) {
+                return $taxonomy->queryTerms()->get()->filter(function ($term) use ($site) {
                     if (!$term->published()) {
+                        return false;
+                    }
+
+                    // site is not configured, so exclude
+                    if(!$term->collection()->sites()->contains($site))
+                    {
                         return false;
                     }
 

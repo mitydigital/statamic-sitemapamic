@@ -45,6 +45,13 @@ class StatamicXmlSitemapController extends Controller
             return Collection::findByHandle($handle)->queryEntries()->get()->filter(function (
                 \Statamic\Entries\Entry $entry
             ) {
+                // same site? if site is different, remove
+                // if the site url is "/" (i.e. the default), then include it anyway
+                if ($entry->site()->url() != '/' && $entry->site()->url() != config('app.url'))
+                {
+                    return false;
+                }
+
                 // is the entry published?
                 if (!$entry->published()) {
                     return false;
@@ -83,12 +90,16 @@ class StatamicXmlSitemapController extends Controller
                     // clear back to use default
                     $changeFreq = null;
                 }
-                if (!$entry->title) {
-                    dd($entry);
+
+                // get the site URL, or the app URL if its "/"
+                $siteUrl = config('statamic.sites.sites.'.$entry->locale().'.url');
+                if ($siteUrl == '/')
+                {
+                    $siteUrl = config('app.url');
                 }
 
                 return new SitemapUrl([
-                    'loc'        => config('statamic.sites.sites.'.$entry->locale().'.url').$entry->url(),
+                    'loc'        => $siteUrl.$entry->url(),
                     'lastmod'    => Carbon::parse($entry->get('updated_at'))->toW3cString(),
                     'changefreq' => $changeFreq ??
                         config('statamic.sitemap.defaults.'.$entry->collection()->handle().'.frequency', false),
@@ -164,8 +175,16 @@ class StatamicXmlSitemapController extends Controller
                         $changeFreq = null;
                     }
 
+
+                    // get the site URL, or the app URL if its "/"
+                    $siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
+                    if ($siteUrl == '/')
+                    {
+                        $siteUrl = config('app.url');
+                    }
+
                     return new SitemapUrl([
-                        'loc'        => config('statamic.sites.sites.'.$term->locale().'.url').$term->url(),
+                        'loc'        => $siteUrl.$term->url(),
                         'lastmod'    => Carbon::parse($lastMod)->toW3cString(),
                         'changefreq' => $changeFreq ??
                             config('statamic.sitemap.defaults.'.$term->collection()->handle().'.frequency', false),

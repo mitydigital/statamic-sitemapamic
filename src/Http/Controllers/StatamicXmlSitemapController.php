@@ -20,7 +20,6 @@ class StatamicXmlSitemapController extends Controller
     public function show()
     {
         $key = config('statamic.sitemap.cache') . '-' . url('/');
-        Cache::forget($key);
         $xml = Cache::rememberForever($key, function () {
             $entries = collect()
                 ->merge($this->loadEntries())

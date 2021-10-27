@@ -30,6 +30,9 @@ class StatamicXmlSitemapController extends Controller
             ])->render();
         });
 
+        // add the XML header
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . $xml;
+
         return response($xml, 200, ['Content-Type' => 'application/xml']);
     }
 

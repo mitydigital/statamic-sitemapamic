@@ -16,14 +16,14 @@ class ClearSitemapamicCacheCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'statamic:sitemap:clear';
+    protected $signature = 'statamic:sitemapamic:clear';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Clear the Statamic Sitemap cache';
+    protected $description = 'Clear the Sitemapamic cache';
 
     /**
      * Execute the console command.

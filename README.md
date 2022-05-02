@@ -1,4 +1,4 @@
-# XML Sitemap generator for Statamic
+# Sitemapamic
 
 <!-- statamic:hide -->
 
@@ -8,6 +8,8 @@
 ---
 
 <!-- /statamic:hide -->
+
+> Sitemapamic is a XML sitemap generator for Statamic 3
 
 This addon will create and cache an XML sitemap for your site, and include:
 

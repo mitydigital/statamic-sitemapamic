@@ -103,7 +103,7 @@ php please sitemapamic:clear
 
 You may also want to update your `composer.json` file to use the new package name:
 
-```json lines
+```json
 # Before
 "mitydigital/statamic-xml-sitemap": "^1.0",
 

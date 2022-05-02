@@ -1,6 +1,6 @@
 <?php
 
-namespace MityDigital\Sitemap\Models;
+namespace MityDigital\Sitemapamic\Models;
 
 class SitemapUrl
 {

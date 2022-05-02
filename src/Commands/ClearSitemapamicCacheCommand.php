@@ -1,13 +1,13 @@
 <?php
 
-namespace MityDigital\Sitemap\Commands;
+namespace MityDigital\Sitemapamic\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Statamic\Console\RunsInPlease;
 use Statamic\Facades\Stache;
 
-class ClearSitemapCacheCommand extends Command
+class ClearSitemapamicCacheCommand extends Command
 {
     use RunsInPlease;
 
@@ -32,7 +32,7 @@ class ClearSitemapCacheCommand extends Command
      */
     public function handle()
     {
-        Cache::forget(config('statamic.sitemap.cache'));
+        Cache::forget(config('statamic.sitemapamic.cache'));
 
         $this->info('Snip snip and whoosh, it\'s all gone.');
     }

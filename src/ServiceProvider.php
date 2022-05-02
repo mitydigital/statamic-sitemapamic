@@ -1,19 +1,19 @@
 <?php
 
-namespace MityDigital\Sitemap;
+namespace MityDigital\Sitemapamic;
 
-use MityDigital\Sitemap\Listeners\ClearStatamicSitemapCache;
-use MityDigital\Sitemap\Commands\ClearSitemapCacheCommand;
+use MityDigital\Sitemapamic\Listeners\ClearSitemapamicCache;
+use MityDigital\Sitemapamic\Commands\ClearSitemapamicCacheCommand;
 use Statamic\Events\EntrySaved;
 use Statamic\Events\TermSaved;
 use Statamic\Providers\AddonServiceProvider;
 
 class ServiceProvider extends AddonServiceProvider
 {
-    protected $viewNamespace = 'mitydigital/sitemap';
+    protected $viewNamespace = 'mitydigital/sitemapamic';
 
     protected $commands = [
-        ClearSitemapCacheCommand::class
+        ClearSitemapamicCacheCommand::class
     ];
 
     protected $routes = [
@@ -22,10 +22,10 @@ class ServiceProvider extends AddonServiceProvider
 
     protected $listen = [
         EntrySaved::class => [
-            ClearStatamicSitemapCache::class,
+            ClearSitemapamicCache::class,
         ],
         TermSaved::class  => [
-            ClearStatamicSitemapCache::class,
+            ClearSitemapamicCache::class,
         ],
     ];
 
@@ -33,10 +33,10 @@ class ServiceProvider extends AddonServiceProvider
     {
         parent::boot();
 
-        $this->mergeConfigFrom(__DIR__.'/../config/sitemap.php', 'statamic.sitemap');
+        $this->mergeConfigFrom(__DIR__.'/../config/sitemapamic.php', 'statamic.sitemapamic');
 
         $this->publishes([
-            __DIR__.'/../config/sitemap.php' => config_path('statamic/sitemap.php')
+            __DIR__.'/../config/sitemapamic.php' => config_path('statamic/sitemapamic.php')
         ], 'config');
     }
 }

@@ -1,16 +1,16 @@
 <?php
 
-namespace MityDigital\Sitemap\Http\Controllers;
+namespace MityDigital\Sitemapamic\Http\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Cache;
-use MityDigital\Sitemap\Models\SitemapUrl;
+use MityDigital\Sitemapamic\Models\SitemapUrl;
 use Statamic\Entries\EntryCollection;
 use Statamic\Facades\Collection;
 use Statamic\GraphQL\Queries\CollectionQuery;
 
-class SitemapController extends Controller
+class SitemapamicController extends Controller
 {
     /**
      * Gets the cached sitemap (or renders if it needs to)
@@ -19,13 +19,13 @@ class SitemapController extends Controller
      */
     public function show()
     {
-        $key = config('statamic.sitemap.cache') . '-' . url('/');
+        $key = config('statamic.sitemapamic.cache') . '-' . url('/');
         $xml = Cache::rememberForever($key, function () {
             $entries = collect()
                 ->merge($this->loadEntries())
                 ->merge($this->loadCollectionTerms());
 
-            return view('mitydigital/sitemap::sitemap', [
+            return view('mitydigital/sitemapamic::sitemap', [
                 'entries' => $entries
             ])->render();
         });
@@ -39,13 +39,13 @@ class SitemapController extends Controller
     /**
      * Gets all published entries for all configured collections.
      *
-     * Returns a collection of \MityDigital\Sitemap\Models\SitemapUrl
+     * Returns a collection of \MityDigital\Sitemapamic\Models\SitemapUrl
      *
      * @return \Illuminate\Support\Collection
      */
     protected function loadEntries(): \Illuminate\Support\Collection
     {
-        return collect(array_keys(config('statamic.sitemap.defaults')))->map(function ($handle) {
+        return collect(array_keys(config('statamic.sitemapamic.defaults')))->map(function ($handle) {
             return Collection::findByHandle($handle)->queryEntries()->get()->filter(function (
                 \Statamic\Entries\Entry $entry
             ) {
@@ -79,7 +79,7 @@ class SitemapController extends Controller
                 $includeInSitemap = $entry->get('meta_include_in_xml_sitemap');
                 if ($includeInSitemap === null) {
                     // get the default config, or return true by default
-                    return config('statamic.sitemap.defaults.'.$entry->collection()->handle().'.include', true);
+                    return config('statamic.sitemapamic.defaults.'.$entry->collection()->handle().'.include', true);
                 } elseif ($includeInSitemap == "false" || $includeInSitemap === false) {
                     // explicitly set to "false" or boolean false, so exclude
                     return false;
@@ -106,9 +106,9 @@ class SitemapController extends Controller
                     'loc'        => $siteUrl.$entry->url(),
                     'lastmod'    => Carbon::parse($entry->get('updated_at'))->toW3cString(),
                     'changefreq' => $changeFreq ??
-                        config('statamic.sitemap.defaults.'.$entry->collection()->handle().'.frequency', false),
+                        config('statamic.sitemapamic.defaults.'.$entry->collection()->handle().'.frequency', false),
                     'priority'   => $entry->get('meta_priority') ??
-                        config('statamic.sitemap.defaults.'.$entry->collection()->handle().'.priority', false)
+                        config('statamic.sitemapamic.defaults.'.$entry->collection()->handle().'.priority', false)
                 ]);
             })->toArray();
         })->flatten(1);
@@ -120,7 +120,7 @@ class SitemapController extends Controller
      * lastmod will be set to the Term's updated_at time, or the latest entry's
      * updated_at time, whichever is more recent.
      *
-     * Returns a collection of \MityDigital\Sitemap\Models\SitemapUrl
+     * Returns a collection of \MityDigital\Sitemapamic\Models\SitemapUrl
      *
      * @return \Illuminate\Support\Collection
      */
@@ -137,7 +137,7 @@ class SitemapController extends Controller
             }
         }
 
-        return collect(config('statamic.sitemap.defaults'))->map(function ($properties, $handle) use ($site) {
+        return collect(config('statamic.sitemapamic.defaults'))->map(function ($properties, $handle) use ($site) {
 
             // if there is a property called includeTaxonomies, and its false (or the collection is disabled) then exclude it
             // this has been added for backwards compatibility
@@ -165,7 +165,7 @@ class SitemapController extends Controller
                     $includeInSitemap = $term->get('meta_include_in_xml_sitemap');
                     if ($includeInSitemap === null) {
                         // get the default config, or return true by default
-                        return config('statamic.sitemap.defaults.'.$term->collection()->handle().'.include', true);
+                        return config('statamic.sitemapamic.defaults.'.$term->collection()->handle().'.include', true);
                     } elseif ($includeInSitemap === false) {
                         // explicitly set to false, so exclude
                         return false;
@@ -208,9 +208,9 @@ class SitemapController extends Controller
                         'loc'        => $siteUrl.$term->url(),
                         'lastmod'    => Carbon::parse($lastMod)->toW3cString(),
                         'changefreq' => $changeFreq ??
-                            config('statamic.sitemap.defaults.'.$term->collection()->handle().'.frequency', false),
+                            config('statamic.sitemapamic.defaults.'.$term->collection()->handle().'.frequency', false),
                         'priority'   => $term->get('meta_priority') ??
-                            config('statamic.sitemap.defaults.'.$term->collection()->handle().'.priority', false)
+                            config('statamic.sitemapamic.defaults.'.$term->collection()->handle().'.priority', false)
                     ]);
                 });
             });

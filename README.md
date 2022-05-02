@@ -3,7 +3,7 @@
 <!-- statamic:hide -->
 
 ![Statamic 3.3+](https://img.shields.io/badge/Statamic-3.3+-FF269E?style=for-the-badge&link=https://statamic.com)
-[![Iconamic on Packagist](https://img.shields.io/packagist/v/mitydigital/statamic-sitemap?style=for-the-badge)](https://packagist.org/packages/mitydigital/statamic-sitemap/stats)
+[![Sitemapamic on Packagist](https://img.shields.io/packagist/v/mitydigital/sitemapamic?style=for-the-badge)](https://packagist.org/packages/mitydigital/sitemapamic/stats)
 
 ---
 
@@ -21,7 +21,7 @@ Unpublished and private entries (for date-based collections) are excluded.
 Install it via the composer command
 
 ```
-composer require mitydigital/statamic-sitemap
+composer require mitydigital/sitemapamic
 ```
 
 ## Viewing
@@ -35,7 +35,7 @@ By default, the "pages" and "blog" collections have defaults set.
 If you want to explore your own configuration, you can publish the config file:
 
 ```
-php artisan vendor:publish --provider="MityDigital\Sitemap\ServiceProvider" --tag=config
+php artisan vendor:publish --provider="MityDigital\Sitemapamicamic\ServiceProvider" --tag=config
 ```
 
 In there you can adjust the cache key, plus the defaults for each collection.
@@ -96,7 +96,7 @@ If you're using the command in your deployment script or as a daily job, please 
 php please sitemap-cache:clear
 
 # After
-php please sitemap:clear
+php please sitemapamic:clear
 ```
 
 You may also want to update your `composer.json` file to use the new package name:
@@ -106,7 +106,7 @@ You may also want to update your `composer.json` file to use the new package nam
 "mitydigital/statamic-xml-sitemap": "^1.0",
 
 # After
-"mitydigital/statamic-sitemap": "^1.0",
+"mitydigital/sitemapamic": "^1.0",
 ```
 
 ## Static Caching gotcha

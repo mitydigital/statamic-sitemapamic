@@ -2,7 +2,7 @@
 
 namespace MityDigital\Sitemap;
 
-use MityDigital\Sitemap\Listeners\ClearSitemapCache;
+use MityDigital\Sitemap\Listeners\ClearStatamicSitemapCache;
 use MityDigital\Sitemap\Commands\ClearCacheCommand;
 use Statamic\Events\EntrySaved;
 use Statamic\Events\TermSaved;

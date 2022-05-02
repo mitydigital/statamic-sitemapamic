@@ -5,7 +5,7 @@ namespace MityDigital\Sitemap\Listeners;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
 
-class ClearSitemapCache implements ShouldQueue
+class ClearStatamicSitemapCache implements ShouldQueue
 {
     /**
      * Simply clear the Statamic XML Sitemap cache

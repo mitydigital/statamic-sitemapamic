@@ -1,6 +1,5 @@
 # XML Sitemap generator for Statamic
 
-
 <!-- statamic:hide -->
 
 ![Statamic 3.3+](https://img.shields.io/badge/Statamic-3.3+-FF269E?style=for-the-badge&link=https://statamic.com)
@@ -66,7 +65,8 @@ These fields can alter the behaviour of the sitemap generator per entry or term.
 so that you can override and adjust these properties on a case-by-case basis.
 
 This is an opinionated approach for a simple site. If you need greater control of SEO for your site, you may be better
-suited to an addon like Statamic's SEO Pro.
+suited to an addon like Statamic's [SEO Pro](https://statamic.com/addons/statamic/seo-pro) (we use this in our larger
+sites).
 
 ## Clearing the cache
 
@@ -88,7 +88,7 @@ php please sitemap-cache:clear
 
 ## Upgrade Notes
 
-When upgrading to v2.0, if you've published the view, manually check to see if anything needs tweaking.
+When upgrading to v1.3.6+, if you've published the view, manually check to see if anything needs tweaking.
 
 ## Static Caching issue
 

@@ -1,5 +1,5 @@
 {
-    "name": "mitydigital/statamic-xml-sitemap",
+    "name": "mitydigital/statamic-sitemap",
     "description": "An XML sitemap generator for a Statamic 3 site that includes all collections and related taxonomy pages.",
     "type": "statamic-addon",
     "keywords": [

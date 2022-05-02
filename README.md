@@ -3,7 +3,7 @@
 <!-- statamic:hide -->
 
 ![Statamic 3.3+](https://img.shields.io/badge/Statamic-3.3+-FF269E?style=for-the-badge&link=https://statamic.com)
-[![Iconamic on Packagist](https://img.shields.io/packagist/v/mitydigital/statamic-xml-sitemap?style=for-the-badge)](https://packagist.org/packages/mitydigital/iconamic/stats)
+[![Iconamic on Packagist](https://img.shields.io/packagist/v/mitydigital/statamic-sitemap?style=for-the-badge)](https://packagist.org/packages/mitydigital/statamic-sitemap/stats)
 
 ---
 
@@ -21,7 +21,7 @@ Unpublished and private entries (for date-based collections) are excluded.
 Install it via the composer command
 
 ```
-composer require mitydigital/statamic-xml-sitemap
+composer require mitydigital/statamic-sitemap
 ```
 
 ## Viewing
@@ -83,14 +83,33 @@ Saving an entry or term will automatically clear the sitemap cache.
 You can force the cache to clear by running:
 
 ```
-php please sitemap-cache:clear
+php please sitemap:clear
 ```
 
 ## Upgrade Notes
 
-When upgrading to v1.3.6+, if you've published the view, manually check to see if anything needs tweaking.
+When upgrading to v2.0+, if you've published the view, manually check to see if anything needs tweaking.
 
-## Static Caching issue
+If you're using the command in your deployment script or as a daily job, please update the command:
+```bash
+# Before 
+php please sitemap-cache:clear
+
+# After
+php please sitemap:clear
+```
+
+You may also want to update your `composer.json` file to use the new package name:
+
+```json lines
+# Before
+"mitydigital/statamic-xml-sitemap": "^1.0",
+
+# After
+"mitydigital/statamic-sitemap": "^1.0",
+```
+
+## Static Caching gotcha
 
 If you are using full static caching, future-posting entries does not work: when the sitemap is cached, it is cached
 until a change is made to an entry, taxonomy or is manually flushed.

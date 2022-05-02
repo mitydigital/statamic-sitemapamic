@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 use Statamic\Console\RunsInPlease;
 use Statamic\Facades\Stache;
 
-class ClearCacheCommand extends Command
+class ClearSitemapCacheCommand extends Command
 {
     use RunsInPlease;
 
@@ -23,7 +23,7 @@ class ClearCacheCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Clear the Statamic XML Sitemap cache';
+    protected $description = 'Clear the Statamic Sitemap cache';
 
     /**
      * Execute the console command.

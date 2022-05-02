@@ -3,7 +3,7 @@
 namespace MityDigital\Sitemap;
 
 use MityDigital\Sitemap\Listeners\ClearStatamicSitemapCache;
-use MityDigital\Sitemap\Commands\ClearCacheCommand;
+use MityDigital\Sitemap\Commands\ClearSitemapCacheCommand;
 use Statamic\Events\EntrySaved;
 use Statamic\Events\TermSaved;
 use Statamic\Providers\AddonServiceProvider;
@@ -13,7 +13,7 @@ class ServiceProvider extends AddonServiceProvider
     protected $viewNamespace = 'mitydigital/sitemap';
 
     protected $commands = [
-        ClearCacheCommand::class
+        ClearSitemapCacheCommand::class
     ];
 
     protected $routes = [
@@ -22,10 +22,10 @@ class ServiceProvider extends AddonServiceProvider
 
     protected $listen = [
         EntrySaved::class => [
-            ClearSitemapCache::class,
+            ClearStatamicSitemapCache::class,
         ],
         TermSaved::class  => [
-            ClearSitemapCache::class,
+            ClearStatamicSitemapCache::class,
         ],
     ];
 

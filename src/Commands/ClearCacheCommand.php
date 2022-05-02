@@ -16,7 +16,7 @@ class ClearCacheCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'statamic:sitemap-cache:clear';
+    protected $signature = 'statamic:sitemap:clear';
 
     /**
      * The console command description.

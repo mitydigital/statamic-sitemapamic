@@ -8,7 +8,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "MityDigital\\StatamicXmlSitemap\\": "src"
+            "MityDigital\\Sitemap\\": "src"
         }
     },
     "license": "MIT",
@@ -18,16 +18,16 @@
         }
     ],
     "require": {
-        "statamic/cms": "^3.0"
+        "statamic/cms": "^3.3"
     },
     "extra": {
         "statamic": {
-            "name": "Statamic XML Sitemap",
-            "description": "Adds a simple XML siteamp to a Statamic site."
+            "name": "Sitemap",
+            "description": "Adds a simple XML sitemap to a Statamic site."
         },
         "laravel": {
             "providers": [
-                "MityDigital\\StatamicXmlSitemap\\ServiceProvider"
+                "MityDigital\\Sitemap\\ServiceProvider"
             ]
         }
     }

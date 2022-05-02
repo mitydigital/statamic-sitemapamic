@@ -1,11 +1,11 @@
 <?php
 
-namespace MityDigital\StatamicXmlSitemap\Listeners;
+namespace MityDigital\Sitemap\Listeners;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Cache;
 
-class ClearStatamicXmlSitemapCache implements ShouldQueue
+class ClearSitemapCache implements ShouldQueue
 {
     /**
      * Simply clear the Statamic XML Sitemap cache

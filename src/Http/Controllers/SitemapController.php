@@ -1,16 +1,16 @@
 <?php
 
-namespace MityDigital\StatamicXmlSitemap\Http\Controllers;
+namespace MityDigital\Sitemap\Http\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Cache;
-use MityDigital\StatamicXmlSitemap\Models\SitemapUrl;
+use MityDigital\Sitemap\Models\SitemapUrl;
 use Statamic\Entries\EntryCollection;
 use Statamic\Facades\Collection;
 use Statamic\GraphQL\Queries\CollectionQuery;
 
-class StatamicXmlSitemapController extends Controller
+class SitemapController extends Controller
 {
     /**
      * Gets the cached sitemap (or renders if it needs to)
@@ -25,7 +25,7 @@ class StatamicXmlSitemapController extends Controller
                 ->merge($this->loadEntries())
                 ->merge($this->loadCollectionTerms());
 
-            return view('mitydigital/statamic-xml-sitemap::sitemap', [
+            return view('mitydigital/sitemap::sitemap', [
                 'entries' => $entries
             ])->render();
         });
@@ -39,7 +39,7 @@ class StatamicXmlSitemapController extends Controller
     /**
      * Gets all published entries for all configured collections.
      *
-     * Returns a collection of \MityDigital\StatamicXmlSitemap\Models\SitemapUrl
+     * Returns a collection of \MityDigital\Sitemap\Models\SitemapUrl
      *
      * @return \Illuminate\Support\Collection
      */
@@ -120,7 +120,7 @@ class StatamicXmlSitemapController extends Controller
      * lastmod will be set to the Term's updated_at time, or the latest entry's
      * updated_at time, whichever is more recent.
      *
-     * Returns a collection of \MityDigital\StatamicXmlSitemap\Models\SitemapUrl
+     * Returns a collection of \MityDigital\Sitemap\Models\SitemapUrl
      *
      * @return \Illuminate\Support\Collection
      */

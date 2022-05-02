@@ -1,16 +1,16 @@
 <?php
 
-namespace MityDigital\StatamicXmlSitemap;
+namespace MityDigital\Sitemap;
 
-use MityDigital\StatamicXmlSitemap\Listeners\ClearStatamicXmlSitemapCache;
-use MityDigital\StatamicXmlSitemap\Commands\ClearCacheCommand;
+use MityDigital\Sitemap\Listeners\ClearSitemapCache;
+use MityDigital\Sitemap\Commands\ClearCacheCommand;
 use Statamic\Events\EntrySaved;
 use Statamic\Events\TermSaved;
 use Statamic\Providers\AddonServiceProvider;
 
 class ServiceProvider extends AddonServiceProvider
 {
-    protected $viewNamespace = 'mitydigital/statamic-xml-sitemap';
+    protected $viewNamespace = 'mitydigital/sitemap';
 
     protected $commands = [
         ClearCacheCommand::class
@@ -22,10 +22,10 @@ class ServiceProvider extends AddonServiceProvider
 
     protected $listen = [
         EntrySaved::class => [
-            ClearStatamicXmlSitemapCache::class,
+            ClearSitemapCache::class,
         ],
         TermSaved::class  => [
-            ClearStatamicXmlSitemapCache::class,
+            ClearSitemapCache::class,
         ],
     ];
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace MityDigital\StatamicXmlSitemap\Commands;
+namespace MityDigital\Sitemap\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;

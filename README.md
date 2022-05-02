@@ -1,10 +1,16 @@
-# XML Sitemap generator for Statamic 3
+# XML Sitemap generator for Statamic
 
-![Statamic 3.0+](https://img.shields.io/badge/Statamic-3.0+-FF269E?style=for-the-badge&link=https://statamic.com)
 
-Ultimately this has been a learning experiment to create an XML sitemap for my own personal site.
+<!-- statamic:hide -->
 
-This will create and cache an XML sitemap for your site, and include:
+![Statamic 3.3+](https://img.shields.io/badge/Statamic-3.3+-FF269E?style=for-the-badge&link=https://statamic.com)
+[![Iconamic on Packagist](https://img.shields.io/packagist/v/mitydigital/statamic-xml-sitemap?style=for-the-badge)](https://packagist.org/packages/mitydigital/iconamic/stats)
+
+---
+
+<!-- /statamic:hide -->
+
+This addon will create and cache an XML sitemap for your site, and include:
 
 - entries from your collections
 - taxonomy pages for collections that use them
@@ -30,17 +36,17 @@ By default, the "pages" and "blog" collections have defaults set.
 If you want to explore your own configuration, you can publish the config file:
 
 ```
-php artisan vendor:publish --provider="MityDigital\StatamicXmlSitemap\ServiceProvider" --tag=config
+php artisan vendor:publish --provider="MityDigital\Sitemap\ServiceProvider" --tag=config
 ```
 
 In there you can adjust the cache key, plus the defaults for each collection.
 
 ## Blueprint requirements
 
-This is an opinionated point, but useful for my use case. For my own site, I have a simple "meta_" fieldset that
-includes title, description plus the ability to override my OG image.
+This is an opinionated point, but can be useful. We have used a simple "meta_" fieldset that includes title, description
+plus the ability to override the OG image.
 
-I also have three fields that play with this addon:
+This addon also looks for the following three fields:
 
 - **meta_include_in_xml_sitemap** a button group, default of "", and options of:
     - '': 'Use default'
@@ -56,15 +62,15 @@ I also have three fields that play with this addon:
     - yearly: 'Yearly (contact, about)'
 - **meta_priority**, float, min 0.0, max 1.0
 
-These fields can alter the behaviour of the sitemap generator per entry or term. I then link this fieldset in my
-collections.
+These fields can alter the behaviour of the sitemap generator per entry or term. This fieldset is used for your Entries
+so that you can override and adjust these properties on a case-by-case basis.
 
-As mentioned, this is my opinionated approach for this use case for a simple site. For client work, I think the Statamic
-SEO Pro package is the defacto go-to.
+This is an opinionated approach for a simple site. If you need greater control of SEO for your site, you may be better
+suited to an addon like Statamic's SEO Pro.
 
 ## Clearing the cache
 
-Your sitemap when rendered is cached forever.
+Your sitemap is cached forever. Well, until you clear it that is.
 
 To clear the cache, you can do one of three things:
 
@@ -80,15 +86,23 @@ You can force the cache to clear by running:
 php please sitemap-cache:clear
 ```
 
-## Outstanding issue
+## Upgrade Notes
 
-Personally I want to use full caching for my site, and as such, future-posting entries does not function as expected as
-they won't appear at the right times due to caching.
+When upgrading to v2.0, if you've published the view, manually check to see if anything needs tweaking.
 
-This also means that your sitemap would need re-generating too.
+## Static Caching issue
 
-Given this has been an experiment for my personal Statamic site, and to keep it simple, I'll just edit (or publish)
-content as it needs to appear, and let the caching do its thing.
+If you are using full static caching, future-posting entries does not work: when the sitemap is cached, it is cached
+until a change is made to an entry, taxonomy or is manually flushed.
+
+In other words, if you create a post that won't appear until 'tomorrow', and the XML sitemap is generated, when tomorrow
+comes around and your new post becomes publicly visible, the XML sitemap won't be updated until the cache is
+invalidated.
+
+You could achieve this by:
+
+- editing content
+- running a daily command that clears the sitemap cache
 
 ## License
 

@@ -8,7 +8,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "MityDigital\\Sitemap\\": "src"
+            "MityDigital\\Sitemapamic\\": "src"
         }
     },
     "license": "MIT",

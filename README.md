@@ -85,7 +85,7 @@ Saving an entry or term will automatically clear the sitemap cache.
 You can force the cache to clear by running:
 
 ```
-php please sitemap:clear
+php please sitemapamic:clear
 ```
 
 ## Upgrade Notes
@@ -108,7 +108,7 @@ You may also want to update your `composer.json` file to use the new package nam
 "mitydigital/statamic-xml-sitemap": "^1.0",
 
 # After
-"mitydigital/sitemapamic": "^1.0",
+"mitydigital/sitemapamic": "^2.0",
 ```
 
 ## Static Caching gotcha

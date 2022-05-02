@@ -35,7 +35,7 @@ By default, the "pages" and "blog" collections have defaults set.
 If you want to explore your own configuration, you can publish the config file:
 
 ```
-php artisan vendor:publish --provider="MityDigital\Sitemapamicamic\ServiceProvider" --tag=config
+php artisan vendor:publish --provider="MityDigital\Sitemapamic\ServiceProvider" --tag=config
 ```
 
 In there you can adjust the cache key, plus the defaults for each collection.

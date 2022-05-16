@@ -9,7 +9,7 @@ class MoveConfigFile extends UpdateScript
 {
     public function shouldUpdate($newVersion, $oldVersion)
     {
-        return $this->isUpdatingTo('2.1.0');
+        return $this->isUpdatingTo('2.0.1');
     }
 
     public function update()

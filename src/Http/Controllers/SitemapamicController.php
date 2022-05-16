@@ -19,7 +19,7 @@ class SitemapamicController extends Controller
      */
     public function show()
     {
-        $key = config('sitemapamic.cache') . '-' . url('/');
+        $key = config('sitemapamic.cache');
         $xml = Cache::rememberForever($key, function () {
             $entries = collect()
                 ->merge($this->loadEntries())

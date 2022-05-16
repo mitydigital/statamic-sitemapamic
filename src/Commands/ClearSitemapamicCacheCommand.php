@@ -32,7 +32,7 @@ class ClearSitemapamicCacheCommand extends Command
      */
     public function handle()
     {
-        Cache::forget(config('statamic.sitemapamic.cache'));
+        Cache::forget(config('sitemapamic.cache'));
 
         $this->info('Snip snip and whoosh, it\'s all gone.');
     }

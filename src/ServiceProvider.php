@@ -29,14 +29,15 @@ class ServiceProvider extends AddonServiceProvider
         ],
     ];
 
-    public function boot()
+    protected $updateScripts = [
+        // v2.0.1
+        \MityDigital\Sitemapamic\UpdateScripts\v2_0_1\MoveConfigFile::class
+    ];
+
+    public function bootAddon()
     {
-        parent::boot();
-
-        $this->mergeConfigFrom(__DIR__.'/../config/sitemapamic.php', 'statamic.sitemapamic');
-
         $this->publishes([
-            __DIR__.'/../config/sitemapamic.php' => config_path('statamic/sitemapamic.php')
-        ], 'config');
+            __DIR__.'/../resources/views' => resource_path('views/vendor/mitydigital/sitemapamic'),
+        ], 'sitemapamic-views');
     }
 }

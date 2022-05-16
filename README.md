@@ -11,7 +11,7 @@
 
 > Sitemapamic is a XML sitemap generator for Statamic 3
 
-This addon will create and cache an XML sitemap for your site, and include:
+This addon will create and cache a XML sitemap for your site, and include:
 
 - entries from your collections
 - taxonomy pages for collections that use them
@@ -37,7 +37,7 @@ By default, the "pages" and "blog" collections have defaults set.
 If you want to explore your own configuration, you can publish the config file:
 
 ```
-php artisan vendor:publish --provider="MityDigital\Sitemapamic\ServiceProvider" --tag=config
+php artisan vendor:publish --tag=sitemapamic-config
 ```
 
 In there you can adjust the cache key, plus the defaults for each collection.
@@ -86,6 +86,14 @@ You can force the cache to clear by running:
 
 ```
 php please sitemapamic:clear
+```
+
+## Publishing the sitemap view
+
+For most cases, you can use the default XML layout. If you need to be making changes, you can publish these:
+
+```
+php artisan vendor:publish --tag=sitemapamic-views
 ```
 
 ## Upgrade Notes

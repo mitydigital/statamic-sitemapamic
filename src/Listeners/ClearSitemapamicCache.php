@@ -12,6 +12,6 @@ class ClearSitemapamicCache implements ShouldQueue
      */
     public function handle()
     {
-        Cache::forget(config('statamic.sitemapamic.cache'));
+        Cache::forget(config('sitemapamic.cache'));
     }
 }

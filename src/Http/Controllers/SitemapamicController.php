@@ -19,7 +19,7 @@ class SitemapamicController extends Controller
      */
     public function show()
     {
-        $key = config('statamic.sitemapamic.cache') . '-' . url('/');
+        $key = config('sitemapamic.cache') . '-' . url('/');
         $xml = Cache::rememberForever($key, function () {
             $entries = collect()
                 ->merge($this->loadEntries())
@@ -45,7 +45,7 @@ class SitemapamicController extends Controller
      */
     protected function loadEntries(): \Illuminate\Support\Collection
     {
-        return collect(array_keys(config('statamic.sitemapamic.defaults')))->map(function ($handle) {
+        return collect(array_keys(config('sitemapamic.defaults')))->map(function ($handle) {
             return Collection::findByHandle($handle)->queryEntries()->get()->filter(function (
                 \Statamic\Entries\Entry $entry
             ) {
@@ -79,7 +79,7 @@ class SitemapamicController extends Controller
                 $includeInSitemap = $entry->get('meta_include_in_xml_sitemap');
                 if ($includeInSitemap === null) {
                     // get the default config, or return true by default
-                    return config('statamic.sitemapamic.defaults.'.$entry->collection()->handle().'.include', true);
+                    return config('sitemapamic.defaults.'.$entry->collection()->handle().'.include', true);
                 } elseif ($includeInSitemap == "false" || $includeInSitemap === false) {
                     // explicitly set to "false" or boolean false, so exclude
                     return false;
@@ -106,9 +106,9 @@ class SitemapamicController extends Controller
                     'loc'        => $siteUrl.$entry->url(),
                     'lastmod'    => Carbon::parse($entry->get('updated_at'))->toW3cString(),
                     'changefreq' => $changeFreq ??
-                        config('statamic.sitemapamic.defaults.'.$entry->collection()->handle().'.frequency', false),
+                        config('sitemapamic.defaults.'.$entry->collection()->handle().'.frequency', false),
                     'priority'   => $entry->get('meta_priority') ??
-                        config('statamic.sitemapamic.defaults.'.$entry->collection()->handle().'.priority', false)
+                        config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority', false)
                 ]);
             })->toArray();
         })->flatten(1);
@@ -137,7 +137,7 @@ class SitemapamicController extends Controller
             }
         }
 
-        return collect(config('statamic.sitemapamic.defaults'))->map(function ($properties, $handle) use ($site) {
+        return collect(config('sitemapamic.defaults'))->map(function ($properties, $handle) use ($site) {
 
             // if there is a property called includeTaxonomies, and its false (or the collection is disabled) then exclude it
             // this has been added for backwards compatibility
@@ -165,7 +165,7 @@ class SitemapamicController extends Controller
                     $includeInSitemap = $term->get('meta_include_in_xml_sitemap');
                     if ($includeInSitemap === null) {
                         // get the default config, or return true by default
-                        return config('statamic.sitemapamic.defaults.'.$term->collection()->handle().'.include', true);
+                        return config('sitemapamic.defaults.'.$term->collection()->handle().'.include', true);
                     } elseif ($includeInSitemap === false) {
                         // explicitly set to false, so exclude
                         return false;
@@ -208,9 +208,9 @@ class SitemapamicController extends Controller
                         'loc'        => $siteUrl.$term->url(),
                         'lastmod'    => Carbon::parse($lastMod)->toW3cString(),
                         'changefreq' => $changeFreq ??
-                            config('statamic.sitemapamic.defaults.'.$term->collection()->handle().'.frequency', false),
+                            config('sitemapamic.defaults.'.$term->collection()->handle().'.frequency', false),
                         'priority'   => $term->get('meta_priority') ??
-                            config('statamic.sitemapamic.defaults.'.$term->collection()->handle().'.priority', false)
+                            config('sitemapamic.defaults.'.$term->collection()->handle().'.priority', false)
                     ]);
                 });
             });

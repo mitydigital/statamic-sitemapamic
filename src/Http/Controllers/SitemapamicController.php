@@ -5,7 +5,8 @@ namespace MityDigital\Sitemapamic\Http\Controllers;
 use Carbon\Carbon;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Cache;
-use MityDigital\Sitemapamic\Models\SitemapUrl;
+use MityDigital\Sitemapamic\Facades\Sitemapamic;
+use MityDigital\Sitemapamic\Models\SitemapamicUrl;
 use Statamic\Entries\EntryCollection;
 use Statamic\Facades\Collection;
 use Statamic\Facades\Taxonomy;
@@ -26,7 +27,8 @@ class SitemapamicController extends Controller
             $entries = collect()
                 ->merge($this->loadEntries())
                 ->merge($this->loadCollectionTerms())
-                ->merge($this->loadGlobalTaxonomies());
+                ->merge($this->loadGlobalTaxonomies())
+                ->merge($this->loadDynamicRoutes());
 
             return view('mitydigital/sitemapamic::sitemap', [
                 'entries' => $entries
@@ -42,7 +44,7 @@ class SitemapamicController extends Controller
     /**
      * Gets all published entries for all configured collections.
      *
-     * Returns a collection of \MityDigital\Sitemapamic\Models\SitemapUrl
+     * Returns a collection of \MityDigital\Sitemapamic\Models\SitemapamicUrl
      *
      * @return \Illuminate\Support\Collection
      */
@@ -103,14 +105,13 @@ class SitemapamicController extends Controller
                     $siteUrl = config('app.url');
                 }
 
-                return new SitemapUrl([
-                    'loc'        => $siteUrl.$entry->url(),
-                    'lastmod'    => Carbon::parse($entry->get('updated_at'))->toW3cString(),
-                    'changefreq' => $changeFreq ??
-                        config('sitemapamic.defaults.'.$entry->collection()->handle().'.frequency', false),
-                    'priority'   => $entry->get('meta_priority') ??
-                        config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority', false)
-                ]);
+                return new SitemapamicUrl(
+                    $siteUrl.$entry->url(),
+                    Carbon::parse($entry->get('updated_at'))->toW3cString(),
+                    $changeFreq ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.frequency', false),
+                    $entry->get('meta_priority') ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority',
+                        false)
+                );
             })->toArray();
         })->flatten(1);
     }
@@ -121,7 +122,7 @@ class SitemapamicController extends Controller
      * lastmod will be set to the Term's updated_at time, or the latest entry's
      * updated_at time, whichever is more recent.
      *
-     * Returns a collection of \MityDigital\Sitemapamic\Models\SitemapUrl
+     * Returns a collection of \MityDigital\Sitemapamic\Models\SitemapamicUrl
      *
      * @return \Illuminate\Support\Collection
      */
@@ -201,14 +202,14 @@ class SitemapamicController extends Controller
                         $siteUrl = config('app.url');
                     }
 
-                    return new SitemapUrl([
-                        'loc'        => $siteUrl.$term->url(),
-                        'lastmod'    => Carbon::parse($lastMod)->toW3cString(),
-                        'changefreq' => $changeFreq ??
-                            config('sitemapamic.defaults.'.$term->collection()->handle().'.frequency', false),
-                        'priority'   => $term->get('meta_priority') ??
-                            config('sitemapamic.defaults.'.$term->collection()->handle().'.priority', false)
-                    ]);
+                    return new SitemapamicUrl(
+                        $siteUrl.$term->url(),
+                        Carbon::parse($lastMod)->toW3cString(),
+                        $changeFreq ?? config('sitemapamic.defaults.'.$term->collection()->handle().'.frequency',
+                            false),
+                        $term->get('meta_priority') ?? config('sitemapamic.defaults.'.$term->collection()->handle().'.priority',
+                            false)
+                    );
                 });
             });
         })->filter()->flatten(1);
@@ -297,16 +298,23 @@ class SitemapamicController extends Controller
                         $siteUrl = config('app.url');
                     }
 
-                    return new SitemapUrl([
-                        'loc'        => $siteUrl.$term->url(),
-                        'lastmod'    => Carbon::parse($lastMod)->toW3cString(),
-                        'changefreq' => $changeFreq ??
-                            config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.frequency', false),
-                        'priority'   => $term->get('meta_priority') ??
-                            config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.priority', false)
-                    ]);
+                    return new SitemapamicUrl(
+                        $siteUrl.$term->url(),
+                        Carbon::parse($lastMod)->toW3cString(),
+                        $changeFreq ??
+                        config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.frequency', false),
+                        $term->get('meta_priority') ?? config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.priority',
+                            false)
+                    );
                 });
 
         })->filter(fn($terms) => $terms)->flatten(1);
+    }
+
+    protected function loadDynamicRoutes(): \Illuminate\Support\Collection
+    {
+        // get the dynamic routes, if any are set, and only return them if they are a SitemapamicUrl
+        return collect(Sitemapamic::getDynamicRoutes())
+            ->filter(fn($route) => get_class($route) == SitemapamicUrl::class);
     }
 }

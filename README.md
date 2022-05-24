@@ -26,9 +26,13 @@ Install it via the composer command
 composer require mitydigital/sitemapamic
 ```
 
+---
+
 ## Viewing
 
 The sitemap is available at your site's base URL with "sitemap.xml".
+
+---
 
 ## Configuration
 
@@ -40,7 +44,121 @@ If you want to explore your own configuration, you can publish the config file:
 php artisan vendor:publish --tag=sitemapamic-config
 ```
 
-In there you can adjust the cache key, plus the defaults for each collection.
+In there you can adjust the cache key, plus the defaults for each collection and configuration for the globals. You'll 
+also see examples for both defaults and globals, just to help you out.
+
+### Defaults
+
+The defaults is an array with a key being the handle of a Collection, and a number of properties.
+
+#### include
+When `true` will automatically include entries from this collection. Set to `false` to not include them by default.
+
+This can be overridden per entry using the `meta_include_in_xml_sitemap` field (see 
+[Blueprint requirements](#blueprint-requirements)).
+
+#### frequency
+
+The default value for the `<changefreq>` tag in your sitemap for each entry.
+
+Leave blank (and not have a `meta_change_frequency` field in your blueprint) will exclude this tag from your sitemap 
+for that Collection's entries.
+
+This can be overridden per entry using the `meta_change_frequency` field (see
+[Blueprint requirements](#blueprint-requirements)).
+
+#### priority
+
+The default value for the `<priority>` tag in each entry's `<url>` in the sitemap XML.
+
+Leave blank (and not have a `meta_priority` field in your blueprint) will exclude this tag from your sitemap
+for that Collection's entries.
+
+This can be overridden per entry using the `meta_priority` field (see
+[Blueprint requirements](#blueprint-requirements)).
+
+#### includeTaxonomies
+
+When set to `true`, taxonomy links will be created for the collection, if your entries use them.
+
+Taxonomy terms can also use a `meta_include_in_xml_sitemap` field in their blueprint to optionally force-exclude a term
+from your sitemap. See [Blueprint requirements](#blueprint-requirements) for field details.
+
+### Globals
+
+Globals are not about Collections, but for additional URLs that come from Statamic. You can define settings for your
+global Taxonomies here.
+
+The configuration settings are the same as for [Defaults](#defaults) - so you can override the same three fields in your
+Term blueprint if you need.
+
+This example would set the `<changefreq>` and `<priority>` for the Tags Taxonomy, but neither for the Categories Taxonomy.
+
+```php
+'globals'  => [
+    'taxonomies' => [
+        'tags' => [
+            'frequency' => 'yearly',
+            'priority'  => '0.5',
+        ],
+        
+        'categories' => []
+    ]
+]
+```
+
+### Dynamic Routes
+
+If your site has routes that are not part of Statamic - such as your own custom Laravel routes - you can add these to 
+you sitemap too.
+
+In your `AppServiceProvider` (or you can create your own SitemapamicServiceProvider if you like too - especially if you 
+use named routes, keep reading) you can add dynamic routes to Sitemapamic as an array of `SitemapamicUrl` objects:
+
+```php
+Sitemapamic::addDynamicRoutes([
+    new SitemapamicUrl(
+        'https://my-awesome-url/dynamic-route',
+        Carbon::now()->toW3cString()
+    ),
+    new SitemapamicUrl(
+        'https://my-awesome-url/a-different-dynamic-route',
+        Carbon::now()->toW3cString()
+    )
+]);
+```
+
+Each `SitemapamicUrl` expects:
+- **loc**, required, a string with a full URL to include
+- **lastmod**, required, a string in the date format you want (we use Carbon's `toW3cString` internally)
+- **changefreq**, optional, a value for your the `<changefreq>` element
+- **priority**, optional, a value between 0.0 and 1.0 for the `<priority>` element
+
+Your **loc** can be whatever you need it to be for your app - including building dynamic URLs based on your app's own 
+data. How many you add and how you build them is totally up to you.
+
+#### Using named routes in a provider
+
+It would be our recommendation to use Named Routes where you can - so that if you change your route, your sitemap can
+pick it automatically.
+
+To do this, you need a little bit of extra work. Firstly, create your own Service Provider, and make sure it is in your
+app's config *after* the `RouteServiceProvider`.
+
+Within your Service Provider's boot method, you can add Dynamic Routes to Sitemapamic after the app has booted:
+
+```php
+$this->app->booted(function () {
+    Sitemapamic::addDynamicRoutes([
+        new SitemapamicUrl(
+            route('my-route-name'),
+            Carbon::now()->toW3cString()
+        )
+    ]);
+});
+```
+
+---
 
 ## Blueprint requirements
 
@@ -70,6 +188,8 @@ This is an opinionated approach for a simple site. If you need greater control o
 suited to an addon like Statamic's [SEO Pro](https://statamic.com/addons/statamic/seo-pro) (we use this in our larger
 sites).
 
+---
+
 ## Clearing the cache
 
 Your sitemap is cached forever. Well, until you clear it that is.
@@ -88,6 +208,8 @@ You can force the cache to clear by running:
 php please sitemapamic:clear
 ```
 
+---
+
 ## Publishing the sitemap view
 
 For most cases, you can use the default XML layout. If you need to be making changes, you can publish these:
@@ -96,7 +218,22 @@ For most cases, you can use the default XML layout. If you need to be making cha
 php artisan vendor:publish --tag=sitemapamic-views
 ```
 
+---
+
 ## Upgrade Notes
+
+### v2.0 to v2.1
+
+This most likely won't need your attention, but the `SitemapUrl` class has been renamed to `SitemapamicUrl`, and the 
+function arguments are now named, not an anonymous array.
+
+v2.1 also introduces the ability to:
+- include global taxonomies
+- include dynamic routes
+
+Refer to the documentation above for more details.
+
+### v1.0 to v2.0
 
 When upgrading to v2.0+, if you've published the view, manually check to see if anything needs tweaking.
 
@@ -119,6 +256,8 @@ You may also want to update your `composer.json` file to use the new package nam
 "mitydigital/sitemapamic": "^2.0",
 ```
 
+---
+
 ## Static Caching gotcha
 
 If you are using full static caching, future-posting entries does not work: when the sitemap is cached, it is cached
@@ -133,6 +272,8 @@ You could achieve this by:
 - editing content
 - running a daily command that clears the sitemap cache
 
+---
+
 ## Support
 
 We love to share work like this, and help the community. However it does take time, effort and work.
@@ -142,6 +283,8 @@ The best thing you can do is [log an issue](../../issues).
 Please try to be detailed when logging an issue, including a clear description of the problem, steps to reproduce the
 issue, and any steps you may have tried or taken to overcome the issue too. This is an awesome first step to helping us
 help you. So be awesome - it'll feel fantastic.
+
+---
 
 ## Credits
 

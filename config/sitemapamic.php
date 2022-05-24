@@ -13,6 +13,7 @@ return [
 
     'cache' => 'sitemapamic',
 
+
     /*
     |--------------------------------------------------------------------------
     | Defaults
@@ -37,10 +38,37 @@ return [
         ],*/
 
         'pages' => [
-            'include'   	    => true,
-            'frequency' 	    => 'yearly',
-            'priority'  	    => '0.5',
+            'include'           => true,
+            'frequency'         => 'yearly',
+            'priority'          => '0.5',
             'includeTaxonomies' => true,
+        ]
+    ],
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Globals
+    |--------------------------------------------------------------------------
+    |
+    | Sets global behaviour for items like taxonomies. Currently that's all that is supported.
+    |
+    | The 'globals.taxonomies' key expects an array of Taxonomy handles, each with an optional
+    | priority and frequency, just like the Defaults section. This means your Taxonomy blueprint
+    | can also take advantage of Term-specific 'meta_change_frequency' and 'meta_priority' fields,
+    | or fall back to these defaults when not set (or present).
+    |
+    | If you don't want the Taxonomy included in the sitemap, simply exclude it from the array.
+    |
+    */
+    'globals'  => [
+        'taxonomies' => [
+            /*'tags' => [
+                'frequency' => 'yearly',
+                'priority'  => '0.5',
+            ],
+
+            'categories' => []*/
         ]
     ]
 ];

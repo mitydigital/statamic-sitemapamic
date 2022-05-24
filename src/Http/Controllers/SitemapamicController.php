@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Cache;
 use MityDigital\Sitemapamic\Models\SitemapUrl;
 use Statamic\Entries\EntryCollection;
 use Statamic\Facades\Collection;
+use Statamic\Facades\Taxonomy;
+use Statamic\Facades\Term;
 use Statamic\GraphQL\Queries\CollectionQuery;
 
 class SitemapamicController extends Controller
@@ -23,7 +25,8 @@ class SitemapamicController extends Controller
         $xml = Cache::rememberForever($key, function () {
             $entries = collect()
                 ->merge($this->loadEntries())
-                ->merge($this->loadCollectionTerms());
+                ->merge($this->loadCollectionTerms())
+                ->merge($this->loadGlobalTaxonomies());
 
             return view('mitydigital/sitemapamic::sitemap', [
                 'entries' => $entries
@@ -31,7 +34,7 @@ class SitemapamicController extends Controller
         });
 
         // add the XML header
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . $xml;
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'.$xml;
 
         return response($xml, 200, ['Content-Type' => 'application/xml']);
     }
@@ -51,8 +54,7 @@ class SitemapamicController extends Controller
             ) {
                 // same site? if site is different, remove
                 // if the site url is "/" (i.e. the default), then include it anyway
-                if ($entry->site()->url() != '/' && $entry->site()->url() != url('/'))
-                {
+                if ($entry->site()->url() != '/' && $entry->site()->url() != url('/')) {
                     return false;
                 }
 
@@ -97,8 +99,7 @@ class SitemapamicController extends Controller
 
                 // get the site URL, or the app URL if its "/"
                 $siteUrl = config('statamic.sites.sites.'.$entry->locale().'.url');
-                if ($siteUrl == '/')
-                {
+                if ($siteUrl == '/') {
                     $siteUrl = config('app.url');
                 }
 
@@ -128,10 +129,8 @@ class SitemapamicController extends Controller
     {
         // get the current site key based on the url
         $site = 'default';
-        foreach(config('statamic.sites.sites') as $key => $props)
-        {
-            if ($props['url'] == url('/'))
-            {
+        foreach (config('statamic.sites.sites') as $key => $props) {
+            if ($props['url'] == url('/')) {
                 $site = $key;
                 break;
             }
@@ -156,8 +155,7 @@ class SitemapamicController extends Controller
                     }
 
                     // site is not configured, so exclude
-                    if(!$term->collection()->sites()->contains($site))
-                    {
+                    if (!$term->collection()->sites()->contains($site)) {
                         return false;
                     }
 
@@ -199,8 +197,7 @@ class SitemapamicController extends Controller
 
                     // get the site URL, or the app URL if its "/"
                     $siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
-                    if ($siteUrl == '/')
-                    {
+                    if ($siteUrl == '/') {
                         $siteUrl = config('app.url');
                     }
 
@@ -215,5 +212,86 @@ class SitemapamicController extends Controller
                 });
             });
         })->filter()->flatten(1);
+    }
+
+    protected function loadGlobalTaxonomies(): \Illuminate\Support\Collection
+    {
+        // are we configured to load the global taxonomies?
+        // if so, what?
+        $taxonomies = config('sitemapamic.globals.taxonomies', []);
+
+        if (empty($taxonomies)) {
+            // return an empty collection - either set to false, or not set yet
+            return collect();
+        }
+
+        // get the current site key based on the url
+        $site = 'default';
+        foreach (config('statamic.sites.sites') as $key => $props) {
+            if ($props['url'] == url('/')) {
+                $site = $key;
+                break;
+            }
+        }
+
+
+        return collect($taxonomies)->map(function ($properties, $handle) use ($site) {
+
+            // get the taxonomy repository
+            $taxonomy = Taxonomy::find($handle);
+
+            // if the taxonomy isn't configured for the site, get out
+            if (!$taxonomy->sites()->contains($site)) {
+                return null;
+            }
+
+            // does a view exist for this taxonomy?
+            // if not, it will 404, so let's not do any more
+            if (!view()->exists('globs/show')) {
+                return null;
+            }
+
+            // get the terms
+            return Term::whereTaxonomy($handle)->map(function (\Statamic\Taxonomies\LocalizedTerm $term) {
+                // get the term mod date
+                $lastMod = $term->get('updated_at');
+
+                // get entries
+                $termEntries = $term->queryEntries()->orderBy('updated_at', 'desc');
+
+                // if this term has entries, get the greater of the two updated_at timestamps
+                if ($termEntries->count() > 0) {
+                    // get the last modified entry
+                    $entryLastMod = $termEntries->first()->get('updated_at');
+
+                    // entry date is after the term's mod date
+                    if ($entryLastMod > $lastMod) {
+                        $lastMod = $entryLastMod;
+                    }
+                }
+
+                $changeFreq = $term->get('meta_change_frequency');
+                if ($changeFreq == 'default') {
+                    // clear back to use default
+                    $changeFreq = null;
+                }
+
+                // get the site URL, or the app URL if its "/"
+                $siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
+                if ($siteUrl == '/') {
+                    $siteUrl = config('app.url');
+                }
+
+                return new SitemapUrl([
+                    'loc'        => $siteUrl.$term->url(),
+                    'lastmod'    => Carbon::parse($lastMod)->toW3cString(),
+                    'changefreq' => $changeFreq ??
+                        config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.frequency', false),
+                    'priority'   => $term->get('meta_priority') ??
+                        config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.priority', false)
+                ]);
+            });
+
+        })->filter(fn($terms) => $terms)->flatten(1);
     }
 }

@@ -252,45 +252,60 @@ class SitemapamicController extends Controller
             }
 
             // get the terms
-            return Term::whereTaxonomy($handle)->map(function (\Statamic\Taxonomies\LocalizedTerm $term) {
-                // get the term mod date
-                $lastMod = $term->get('updated_at');
-
-                // get entries
-                $termEntries = $term->queryEntries()->orderBy('updated_at', 'desc');
-
-                // if this term has entries, get the greater of the two updated_at timestamps
-                if ($termEntries->count() > 0) {
-                    // get the last modified entry
-                    $entryLastMod = $termEntries->first()->get('updated_at');
-
-                    // entry date is after the term's mod date
-                    if ($entryLastMod > $lastMod) {
-                        $lastMod = $entryLastMod;
+            return Term::whereTaxonomy($handle)
+                ->filter(function ($term) {
+                    // should we include this term?
+                    // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
+                    $includeInSitemap = $term->get('meta_include_in_xml_sitemap');
+                    if ($includeInSitemap === "false" || $includeInSitemap === false) {
+                        // explicitly set to "false" or boolean false, so exclude
+                        return false;
                     }
-                }
 
-                $changeFreq = $term->get('meta_change_frequency');
-                if ($changeFreq == 'default') {
-                    // clear back to use default
-                    $changeFreq = null;
-                }
+                    // there is no meta field for the term, so include it
+                    // Why? Because if we made it this far, the Taxonomy is part of the global config, so
+                    // we want to include it. So just include it.
+                    return true;
+                })
+                ->map(function (\Statamic\Taxonomies\LocalizedTerm $term) {
+                    // get the term mod date
+                    $lastMod = $term->get('updated_at');
 
-                // get the site URL, or the app URL if its "/"
-                $siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
-                if ($siteUrl == '/') {
-                    $siteUrl = config('app.url');
-                }
+                    // get entries
+                    $termEntries = $term->queryEntries()->orderBy('updated_at', 'desc');
 
-                return new SitemapUrl([
-                    'loc'        => $siteUrl.$term->url(),
-                    'lastmod'    => Carbon::parse($lastMod)->toW3cString(),
-                    'changefreq' => $changeFreq ??
-                        config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.frequency', false),
-                    'priority'   => $term->get('meta_priority') ??
-                        config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.priority', false)
-                ]);
-            });
+                    // if this term has entries, get the greater of the two updated_at timestamps
+                    if ($termEntries->count() > 0) {
+                        // get the last modified entry
+                        $entryLastMod = $termEntries->first()->get('updated_at');
+
+                        // entry date is after the term's mod date
+                        if ($entryLastMod > $lastMod) {
+                            $lastMod = $entryLastMod;
+                        }
+                    }
+
+                    $changeFreq = $term->get('meta_change_frequency');
+                    if ($changeFreq == 'default') {
+                        // clear back to use default
+                        $changeFreq = null;
+                    }
+
+                    // get the site URL, or the app URL if its "/"
+                    $siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
+                    if ($siteUrl == '/') {
+                        $siteUrl = config('app.url');
+                    }
+
+                    return new SitemapUrl([
+                        'loc'        => $siteUrl.$term->url(),
+                        'lastmod'    => Carbon::parse($lastMod)->toW3cString(),
+                        'changefreq' => $changeFreq ??
+                            config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.frequency', false),
+                        'priority'   => $term->get('meta_priority') ??
+                            config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.priority', false)
+                    ]);
+                });
 
         })->filter(fn($terms) => $terms)->flatten(1);
     }

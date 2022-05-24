@@ -247,7 +247,7 @@ class SitemapamicController extends Controller
 
             // does a view exist for this taxonomy?
             // if not, it will 404, so let's not do any more
-            if (!view()->exists('globs/show')) {
+            if (!view()->exists($handle.'/show')) {
                 return null;
             }
 

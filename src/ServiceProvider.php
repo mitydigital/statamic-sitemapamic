@@ -4,8 +4,12 @@ namespace MityDigital\Sitemapamic;
 
 use MityDigital\Sitemapamic\Listeners\ClearSitemapamicCache;
 use MityDigital\Sitemapamic\Commands\ClearSitemapamicCacheCommand;
+use Statamic\Events\CollectionDeleted;
+use Statamic\Events\CollectionSaved;
 use Statamic\Events\EntryDeleted;
 use Statamic\Events\EntrySaved;
+use Statamic\Events\TaxonomyDeleted;
+use Statamic\Events\TaxonomySaved;
 use Statamic\Events\TermDeleted;
 use Statamic\Events\TermSaved;
 use Statamic\Providers\AddonServiceProvider;
@@ -23,16 +27,28 @@ class ServiceProvider extends AddonServiceProvider
     ];
 
     protected $listen = [
-        EntryDeleted::class => [
+        CollectionDeleted::class => [
             ClearSitemapamicCache::class,
         ],
-        EntrySaved::class => [
+        CollectionSaved::class   => [
             ClearSitemapamicCache::class,
         ],
-        TermDeleted::class  => [
+        EntryDeleted::class      => [
             ClearSitemapamicCache::class,
         ],
-        TermSaved::class  => [
+        EntrySaved::class        => [
+            ClearSitemapamicCache::class,
+        ],
+        TaxonomyDeleted::class   => [
+            ClearSitemapamicCache::class,
+        ],
+        TaxonomySaved::class     => [
+            ClearSitemapamicCache::class,
+        ],
+        TermDeleted::class       => [
+            ClearSitemapamicCache::class,
+        ],
+        TermSaved::class         => [
             ClearSitemapamicCache::class,
         ],
     ];

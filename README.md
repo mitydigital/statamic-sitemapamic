@@ -113,7 +113,8 @@ If your site has routes that are not part of Statamic - such as your own custom 
 you sitemap too.
 
 In your `AppServiceProvider` (or you can create your own SitemapamicServiceProvider if you like too - especially if you 
-use named routes, keep reading) you can add dynamic routes to Sitemapamic as an array of `SitemapamicUrl` objects:
+use named routes, keep reading) you can add dynamic routes to Sitemapamic as a closure that returns an array
+of `SitemapamicUrl` objects:
 
 ```php
 Sitemapamic::addDynamicRoutes(function() {
@@ -142,7 +143,7 @@ data. How many you add and how you build them is totally up to you.
 #### Using named routes in a provider
 
 It would be our recommendation to use Named Routes where you can - so that if you change your route, your sitemap can
-pick it automatically.
+pick it automatically. It also means you don't have to be hardcoding full URLs in your app.
 
 To do this, you need a little bit of extra work. Firstly, create your own Service Provider, and make sure it is in your
 app's config *after* the `RouteServiceProvider`.
@@ -189,8 +190,7 @@ These fields can alter the behaviour of the sitemap generator per entry or term.
 so that you can override and adjust these properties on a case-by-case basis.
 
 This is an opinionated approach for a simple site. If you need greater control of SEO for your site, you may be better
-suited to an addon like Statamic's [SEO Pro](https://statamic.com/addons/statamic/seo-pro) (we use this in our larger
-sites).
+suited to an addon like Statamic's [SEO Pro](https://statamic.com/addons/statamic/seo-pro).
 
 ---
 
@@ -200,17 +200,20 @@ Your sitemap is cached forever. Well, until you clear it that is.
 
 To clear the cache, you can do one of three things:
 
-- save an entry
-- save a taxonomy term
+- save (or delete) an Entry
+- save (or delete) a Taxonomy or Term
+- save (or delete) a Collection
 - run a ``please`` command
 
-Saving an entry or term will automatically clear the sitemap cache.
+Saving an Entry, Collection, Taxonomy or Term will automatically clear the sitemap cache.
 
 You can force the cache to clear by running:
 
 ```
 php please sitemapamic:clear
 ```
+
+This could be a good command to have as part of your deployment script.
 
 ---
 

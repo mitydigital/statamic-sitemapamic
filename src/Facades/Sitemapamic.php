@@ -5,7 +5,7 @@ namespace MityDigital\Sitemapamic\Facades;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static string addDynamicRoutes(array $routes)
+ * @method static string addDynamicRoutes($routesClosure)
  * @method static string getDynamicRoutes() : array
  *
  * @see MityDigita\Sitemapamic\Support\Sitemapamic

@@ -315,6 +315,9 @@ class SitemapamicController extends Controller
     {
         // get the dynamic routes, if any are set, and only return them if they are a SitemapamicUrl
         return collect(Sitemapamic::getDynamicRoutes())
+            ->flatMap(function ($closure) {
+                return $closure();
+            })
             ->filter(fn($route) => get_class($route) == SitemapamicUrl::class);
     }
 }

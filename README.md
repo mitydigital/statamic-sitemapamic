@@ -116,16 +116,18 @@ In your `AppServiceProvider` (or you can create your own SitemapamicServiceProvi
 use named routes, keep reading) you can add dynamic routes to Sitemapamic as an array of `SitemapamicUrl` objects:
 
 ```php
-Sitemapamic::addDynamicRoutes([
-    new SitemapamicUrl(
-        'https://my-awesome-url/dynamic-route',
-        Carbon::now()->toW3cString()
-    ),
-    new SitemapamicUrl(
-        'https://my-awesome-url/a-different-dynamic-route',
-        Carbon::now()->toW3cString()
-    )
-]);
+Sitemapamic::addDynamicRoutes(function() {
+    return [
+        new SitemapamicUrl(
+            'https://my-awesome-url/dynamic-route',
+            Carbon::now()->toW3cString()
+        ),
+        new SitemapamicUrl(
+            'https://my-awesome-url/a-different-dynamic-route',
+            Carbon::now()->toW3cString()
+        )
+    ];
+});
 ```
 
 Each `SitemapamicUrl` expects:
@@ -149,12 +151,14 @@ Within your Service Provider's boot method, you can add Dynamic Routes to Sitema
 
 ```php
 $this->app->booted(function () {
-    Sitemapamic::addDynamicRoutes([
-        new SitemapamicUrl(
-            route('my-route-name'),
-            Carbon::now()->toW3cString()
-        )
-    ]);
+    Sitemapamic::addDynamicRoutes(function () {
+        return [
+            new SitemapamicUrl(
+                route('dynamic-route'),
+                Carbon::now()->toW3cString()
+            )
+        ];
+    });
 });
 ```
 

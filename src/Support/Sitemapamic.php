@@ -6,9 +6,9 @@ class Sitemapamic
 {
     protected $dynamicRoutes = [];
 
-    public function addDynamicRoutes(array $routes)
+    public function addDynamicRoutes($routesClosure)
     {
-        $this->dynamicRoutes = array_merge($this->dynamicRoutes, $routes);
+        $this->dynamicRoutes = $routesClosure;
     }
 
     public function getDynamicRoutes()

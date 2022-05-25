@@ -235,10 +235,13 @@ This most likely won't need your attention, but the `SitemapUrl` class has been 
 function arguments are now named, not an anonymous array.
 
 v2.1 also introduces the ability to:
-- include global taxonomies
+- include global Taxonomy Terms
 - include dynamic routes
 
-Refer to the documentation above for more details.
+To take advantage of the global Taxonomy Terms, you'll need to add the `globals` property to your config file. Take a 
+look at the package's [default config file](./config/sitemapamic.php) for an example.
+
+Refer to the documentation above for more details about implementing both features.
 
 ### v1.0 to v2.0
 

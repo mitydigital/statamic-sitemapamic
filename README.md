@@ -47,6 +47,17 @@ php artisan vendor:publish --tag=sitemapamic-config
 In there you can adjust the cache key, plus the defaults for each collection and configuration for the globals. You'll 
 also see examples for both defaults and globals, just to help you out.
 
+### TTL
+
+By default, Sitemapamic will hold on to your sitemap forever. Well, until an Entry, Term, Taxonomy or Collection is
+saved or deleted.
+
+But you can use the `ttl` property to define a custom lifetime for your cache, in case you want it to get re-built
+more often.
+
+The easiest thing to do is pass a number of seconds as the `ttl` value. You can also use a DateInterval if you'd prefer
+too - anything that Laravel's `Cache::put` accepts as a ttl will work beautifully here.
+
 ### Defaults
 
 The defaults is an array with a key being the handle of a Collection, and a number of properties.
@@ -228,6 +239,12 @@ php artisan vendor:publish --tag=sitemapamic-views
 ---
 
 ## Upgrade Notes
+
+### v2.1 to v2.2.1
+
+If you'd like to use the new TTL config option, you'll need to add the `ttl` property to your Sitemapamic config file.
+
+Check out the documentation above, or the source config file for full details.
 
 ### v2.0 to v2.1
 

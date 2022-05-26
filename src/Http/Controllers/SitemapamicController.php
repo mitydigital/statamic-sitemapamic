@@ -22,8 +22,7 @@ class SitemapamicController extends Controller
      */
     public function show()
     {
-        $key = config('sitemapamic.cache');
-        $xml = Cache::rememberForever($key, function () {
+        $generator = function () {
             $entries = collect()
                 ->merge($this->loadEntries())
                 ->merge($this->loadCollectionTerms())
@@ -33,7 +32,17 @@ class SitemapamicController extends Controller
             return view('mitydigital/sitemapamic::sitemap', [
                 'entries' => $entries
             ])->render();
-        });
+        };
+
+        $key = config('sitemapamic.cache');
+        $ttl = config('sitemapamic.ttl', 'forever');
+
+        // if the ttl is strictly 'forever', do just that
+        if ($ttl == 'forever') {
+            $xml = Cache::rememberForever($key, $generator);
+        } else {
+            $xml = Cache::remember($key, $ttl, $generator);
+        }
 
         // add the XML header
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'.$xml;

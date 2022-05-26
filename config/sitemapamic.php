@@ -16,6 +16,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Cache Duration
+    |--------------------------------------------------------------------------
+    |
+    | The number of seconds for how long the Sitemapamic Cache be held for.
+    |
+    | Can be an integer or DateInterval - the same options that Laravel's Cache accepts.
+    |
+    | Or set to 'forever' to remember forever (don't worry, it will get cleared when an Entry,
+    | Term, Taxonomy or Collection is saved or deleted.
+    |
+    */
+
+    'ttl' => 'forever',
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Defaults
     |--------------------------------------------------------------------------
     |

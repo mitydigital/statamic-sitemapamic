@@ -9,7 +9,7 @@
 
 <!-- /statamic:hide -->
 
-> Sitemapamic is a XML sitemap generator for Statamic 3
+> Sitemapamic is a XML sitemap generator for Statamic 3.3
 
 This addon will create and cache a XML sitemap for your site, and include:
 
@@ -17,6 +17,10 @@ This addon will create and cache a XML sitemap for your site, and include:
 - taxonomy pages for collections that use them
 
 Unpublished and private entries (for date-based collections) are excluded.
+
+Sitemapamic requires:
+- Statamic 3.3+
+- PHP 8.0+
 
 ## Installation
 

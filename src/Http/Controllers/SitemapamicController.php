@@ -3,6 +3,7 @@
 namespace MityDigital\Sitemapamic\Http\Controllers;
 
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Cache;
 use MityDigital\Sitemapamic\Facades\Sitemapamic;
@@ -20,22 +21,49 @@ class SitemapamicController extends Controller
      *
      * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Http\Response
      */
-    public function show()
+    public function show(Request $request)
     {
-        $generator = function () {
-            $entries = collect()
-                ->merge($this->loadEntries())
-                ->merge($this->loadCollectionTerms())
-                ->merge($this->loadGlobalTaxonomies())
-                ->merge($this->loadDynamicRoutes());
-
-            return view('mitydigital/sitemapamic::sitemap', [
-                'entries' => $entries
-            ])->render();
-        };
-
+        $mode = config('sitemapamic.mode', 'single');
         $key = config('sitemapamic.cache');
         $ttl = config('sitemapamic.ttl', 'forever');
+
+        $loaders = collect()
+            ->merge($this->loadEntries())
+            ->merge($this->loadCollectionTerms())
+            ->merge($this->loadGlobalTaxonomies())
+            ->merge($this->loadDynamicRoutes());
+
+        if ($mode === 'single') {
+            $generator = function () use ($loaders) {
+                $entries = $loaders
+                    ->map(fn ($loader) => $loader())
+                    ->flatten(1);
+                return view('mitydigital/sitemapamic::sitemap', [
+                    'entries' => $entries
+                ])->render();
+            };
+        } elseif ($mode === 'multiple') {
+            if ($request->submap) {
+                if (!$loaders->has($request->submap)) {
+                    abort(404);
+                }
+                $key .= '_' . $request->submap;
+                $generator = function () use ($loaders, $request) {
+                    $entries = $loaders->get($request->submap)();
+                    return view('mitydigital/sitemapamic::sitemap', [
+                        'entries' => $entries
+                    ])->render();
+                };
+            } else {
+                $generator = function () use ($loaders) {
+                    $submaps = $loaders->keys();
+                    return view('mitydigital/sitemapamic::index', [
+                        'submaps' => $submaps
+                    ])->render();
+                };
+            }
+
+        }
 
         // if the ttl is strictly 'forever', do just that
         if ($ttl == 'forever') {
@@ -59,7 +87,8 @@ class SitemapamicController extends Controller
      */
     protected function loadEntries(): \Illuminate\Support\Collection
     {
-        return collect(array_keys(config('sitemapamic.defaults')))->map(function ($handle) {
+        return collect(config('sitemapamic.defaults'))->mapWithKeys(function ($properties, $handle) {
+            return [$handle => function () use ($properties, $handle) {
             return Collection::findByHandle($handle)->queryEntries()->get()->filter(function (
                 \Statamic\Entries\Entry $entry
             ) {
@@ -122,7 +151,8 @@ class SitemapamicController extends Controller
                         false)
                 );
             })->toArray();
-        })->flatten(1);
+            }];
+        });
     }
 
     /**
@@ -156,9 +186,9 @@ class SitemapamicController extends Controller
 
             $collection = Collection::findByHandle($handle);
 
-            return $collection->taxonomies()->map->collection($collection)->flatMap(function (
-                $taxonomy
-            ) use ($site) {
+            return $collection->taxonomies()->map->collection($collection)->mapWithKeys(function ($taxonomy) use ($properties, $handle, $site) {
+                return [$handle . '_' .$taxonomy->handle => function () use ($taxonomy, $site) {
+
                 return $taxonomy->queryTerms()->get()->filter(function ($term) use ($site) {
                     if (!$term->published()) {
                         return false;
@@ -220,8 +250,9 @@ class SitemapamicController extends Controller
                             false)
                     );
                 });
+                }];
             });
-        })->filter()->flatten(1);
+        })->flatMap(fn ($items) => $items);
     }
 
     protected function loadGlobalTaxonomies(): \Illuminate\Support\Collection
@@ -244,8 +275,8 @@ class SitemapamicController extends Controller
             }
         }
 
-
-        return collect($taxonomies)->map(function ($properties, $handle) use ($site) {
+        return collect($taxonomies)->mapWithKeys(function ($properties, $handle) use ($site) {
+            return [$handle => function () use ($handle, $site) {
 
             // get the taxonomy repository
             $taxonomy = Taxonomy::find($handle);
@@ -316,17 +347,19 @@ class SitemapamicController extends Controller
                             false)
                     );
                 });
-
-        })->filter(fn($terms) => $terms)->flatten(1);
+            }];
+        });
     }
 
     protected function loadDynamicRoutes(): \Illuminate\Support\Collection
     {
         // get the dynamic routes, if any are set, and only return them if they are a SitemapamicUrl
+        return collect(['dynamic' => function() {
         return collect(Sitemapamic::getDynamicRoutes())
             ->flatMap(function ($closure) {
                 return $closure();
             })
             ->filter(fn($route) => get_class($route) == SitemapamicUrl::class);
+        }]);
     }
 }

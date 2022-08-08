@@ -44,6 +44,7 @@ help you. So be awesome - it'll feel fantastic.
 ## Credits
 
 - [Marty Friedel](https://github.com/martyf)
+- [Jack Sleight](https://github.com/jacksleight) for adding multiple sitemap support
 
 ## License
 

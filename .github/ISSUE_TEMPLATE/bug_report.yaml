@@ -1,0 +1,28 @@
+name: Bug report
+description: Fill out a bug report to help us improve.
+body:
+  - type: textarea
+    attributes:
+      label: Bug description
+      description: Please provide a detatiled description of what happened - and if needed, screenshots can help too.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Provide clear, concise steps to reproduce the issue. A step-by-step list is a great start.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Environment and versions
+      description: |
+        Details about specific vesions for Statamic, any addons and your PHP version.
+        (The easiest thing to do is paste the output of the `php please support:details` command.)    
+      render: yaml # the format of the command is close to yaml and gets highlighted nicely
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional details
+      description: Anything else you would like to add?

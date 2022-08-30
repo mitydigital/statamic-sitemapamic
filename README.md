@@ -11,6 +11,14 @@
 
 > Sitemapamic is a XML sitemap generator for Statamic 3.3
 
+Sitemapamic creates a sitemap.xml file for your Statamic site, and includes:
+- automatic route registration for `sitemap.xml`
+- automatic updates as your content changes
+- caching for performance (with a set time, or until content changes)
+- support for multi-site on the same or different domains
+- support for splitting large sites in to multiple smaller sitemaps
+- console commands for manual cache clearing
+
 This addon will create and cache a XML sitemap for your site, and include:
 
 - entries from your collections
@@ -20,7 +28,7 @@ Unpublished and private entries (for date-based collections) are excluded.
 
 Sitemapamic requires:
 - Statamic 3.3+
-- PHP 8.0+
+- PHP 8.1+
 
 ## Documentation
 

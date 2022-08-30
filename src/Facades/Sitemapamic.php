@@ -6,11 +6,12 @@ use Illuminate\Support\Facades\Facade;
 
 /**
  * @method static string addDynamicRoutes($routesClosure)
- * @method static string getDynamicRoutes() : array
- * @method static array getLoaders() : array
- * @method static string|mixed getCacheKey() : string|mixed
- * @method static array getCacheKeys() : array
+ * @method static getDynamicRoutes() : array
+ * @method static getLoaders() : array
+ * @method static getCacheKey() : string|mixed
+ * @method static getCacheKeys() : array
  * @method static array clearCache(array $keys) : bool
+ * @method static hasDynamicRoutes() : bool
  *
  * @see MityDigita\Sitemapamic\Support\Sitemapamic
  */

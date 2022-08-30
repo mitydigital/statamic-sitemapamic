@@ -29,13 +29,16 @@ class SitemapamicController extends Controller
         $key = Sitemapamic::getCacheKey();
         $ttl = config('sitemapamic.ttl', 'forever');
 
+        // add site to key
+        $key .= '.'.Site::current();
+
         // get the loaders
         $loaders = Sitemapamic::getLoaders();
 
         if ($mode === 'single') {
             $generator = function () use ($loaders) {
                 $entries = $loaders
-                    ->map(fn ($loader) => $loader())
+                    ->map(fn($loader) => $loader())
                     ->flatten(1);
                 return view('mitydigital/sitemapamic::sitemap', [
                     'entries' => $entries
@@ -46,7 +49,8 @@ class SitemapamicController extends Controller
                 if (!$loaders->has($request->submap)) {
                     abort(404);
                 }
-                $key .= '.' . $request->submap;
+                $key .= '.'.$request->submap;
+
                 $generator = function () use ($loaders, $request) {
                     $entries = $loaders->get($request->submap)();
                     return view('mitydigital/sitemapamic::sitemap', [
@@ -55,22 +59,9 @@ class SitemapamicController extends Controller
                 };
             } else {
                 $generator = function () use ($loaders) {
-                    $submaps = $loaders->keys();
-
-                    // do we have dynamic routes?
-                    if ($loaders->has('dynamic'))
-                    {
-                        // call the dynamic routes to see if we have any
-                        $dynamicRoutes = $loaders->get('dynamic')();
-
-                        // there are no routes, so forget it
-                        if ($dynamicRoutes->empty()) {
-                            $loaders->forget('dynamic');
-                        }
-                    }
-
+                    // return the view with submaps defined
                     return view('mitydigital/sitemapamic::index', [
-                        'domain' => rtrim(URL::makeAbsolute(Site::current()->url()),'/\\'),
+                        'domain' => rtrim(URL::makeAbsolute(Site::current()->url()), '/\\'),
                         'submaps' => $loaders->keys()
                     ])->render();
                 };

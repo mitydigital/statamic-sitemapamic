@@ -2,6 +2,7 @@
 
 namespace MityDigital\Sitemapamic;
 
+use MityDigital\Sitemapamic\Commands\ListSitemapamicCacheKeysCommand;
 use MityDigital\Sitemapamic\Listeners\ClearSitemapamicCache;
 use MityDigital\Sitemapamic\Commands\ClearSitemapamicCacheCommand;
 use Statamic\Events\CollectionDeleted;
@@ -19,7 +20,8 @@ class ServiceProvider extends AddonServiceProvider
     protected $viewNamespace = 'mitydigital/sitemapamic';
 
     protected $commands = [
-        ClearSitemapamicCacheCommand::class
+        ClearSitemapamicCacheCommand::class,
+        ListSitemapamicCacheKeysCommand::class
     ];
 
     protected $routes = [

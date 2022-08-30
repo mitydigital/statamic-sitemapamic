@@ -6,8 +6,10 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use MityDigital\Sitemapamic\Models\SitemapamicUrl;
 use Statamic\Facades\Collection;
+use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
 use Statamic\Facades\Term;
+use Statamic\Facades\URL;
 
 class Sitemapamic
 {
@@ -130,8 +132,7 @@ class Sitemapamic
                     \Statamic\Entries\Entry $entry
                 ) {
                     // same site? if site is different, remove
-                    // if the site url is "/" (i.e. the default), then include it anyway
-                    if ($entry->site()->url() != '/' && $entry->site()->url() != url('/')) {
+                    if ($entry->site() != Site::current()) {
                         return false;
                     }
 
@@ -174,14 +175,9 @@ class Sitemapamic
                         $changeFreq = null;
                     }
 
-                    // get the site URL, or the app URL if its "/"
-                    $siteUrl = config('statamic.sites.sites.'.$entry->locale().'.url');
-                    if ($siteUrl == '/') {
-                        $siteUrl = config('app.url');
-                    }
-
+                    // return the entry as a Sitemapamic URL
                     return new SitemapamicUrl(
-                        $siteUrl.$entry->url(),
+                        URL::makeAbsolute($entry->url()),
                         Carbon::parse($entry->get('updated_at'))->toW3cString(),
                         $changeFreq ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.frequency', false),
                         $entry->get('meta_priority') ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority',

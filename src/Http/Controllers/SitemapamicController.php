@@ -10,8 +10,10 @@ use MityDigital\Sitemapamic\Facades\Sitemapamic;
 use MityDigital\Sitemapamic\Models\SitemapamicUrl;
 use Statamic\Entries\EntryCollection;
 use Statamic\Facades\Collection;
+use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
 use Statamic\Facades\Term;
+use Statamic\Facades\URL;
 use Statamic\GraphQL\Queries\CollectionQuery;
 
 class SitemapamicController extends Controller
@@ -54,12 +56,25 @@ class SitemapamicController extends Controller
             } else {
                 $generator = function () use ($loaders) {
                     $submaps = $loaders->keys();
+
+                    // do we have dynamic routes?
+                    if ($loaders->has('dynamic'))
+                    {
+                        // call the dynamic routes to see if we have any
+                        $dynamicRoutes = $loaders->get('dynamic')();
+
+                        // there are no routes, so forget it
+                        if ($dynamicRoutes->empty()) {
+                            $loaders->forget('dynamic');
+                        }
+                    }
+
                     return view('mitydigital/sitemapamic::index', [
-                        'submaps' => $submaps
+                        'domain' => rtrim(URL::makeAbsolute(Site::current()->url()),'/\\'),
+                        'submaps' => $loaders->keys()
                     ])->render();
                 };
             }
-
         }
 
         // if the ttl is strictly 'forever', do just that

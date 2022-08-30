@@ -83,7 +83,7 @@ class Sitemapamic
                     ->toArray();
             } else {
                 // just return the key
-                return [$key];
+                return [$key.'.'.Site::default()];
             }
         } elseif ($mode === 'multiple') {
             // get the loaders

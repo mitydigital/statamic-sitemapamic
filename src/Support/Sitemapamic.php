@@ -184,7 +184,7 @@ class Sitemapamic
 
                         // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
                         $includeInSitemap = $entry->get('meta_include_in_xml_sitemap');
-                        if ($includeInSitemap === null) {
+                        if ($includeInSitemap === null || $includeInSitemap == 'default') {
                             // get the default config, or return true by default
                             return config('sitemapamic.defaults.'.$entry->collection()->handle().'.include', true);
                         } elseif ($includeInSitemap == "false" || $includeInSitemap === false) {

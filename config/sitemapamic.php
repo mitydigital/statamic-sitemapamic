@@ -7,7 +7,7 @@ return [
     | Mode
     |--------------------------------------------------------------------------
     |
-    | Generate a single sitemap or seperate sitemaps per collection/taxonomy etc.
+    | Generate a single sitemap or separate sitemaps per collection/taxonomy etc.
     |
     | Can be 'single' or 'multiple'
     |

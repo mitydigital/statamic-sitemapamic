@@ -168,15 +168,15 @@ class Sitemapamic
                             return false;
                         }
 
-                        // if future listings are private, do not include
-                        if ($entry->collection()->futureDateBehavior() == 'private') {
+                        // if future listings are private or unlisted, do not include
+                        if ($entry->collection()->futureDateBehavior() == 'private' || $entry->collection()->futureDateBehavior() == 'unlisted') {
                             if ($entry->date() > now()) {
                                 return false;
                             }
                         }
 
-                        // if past listings are private, do not include
-                        if ($entry->collection()->pastDateBehavior() == 'private') {
+                        // if past listings are private or unlisted, do not include
+                        if ($entry->collection()->pastDateBehavior() == 'private' || $entry->collection()->pastDateBehavior() == 'unlisted') {
                             if ($entry->date() < now()) {
                                 return false;
                             }

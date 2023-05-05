@@ -3,13 +3,14 @@
 <!-- statamic:hide -->
 
 ![Statamic 3.3+](https://img.shields.io/badge/Statamic-3.3+-FF269E?style=for-the-badge&link=https://statamic.com)
+![Statamic 4.0](https://img.shields.io/badge/Statamic-4.0-FF269E?style=for-the-badge&link=https://statamic.com)
 [![Sitemapamic on Packagist](https://img.shields.io/packagist/v/mitydigital/sitemapamic?style=for-the-badge)](https://packagist.org/packages/mitydigital/sitemapamic/stats)
 
 ---
 
 <!-- /statamic:hide -->
 
-> Sitemapamic is a XML sitemap generator for Statamic 3.3
+> Sitemapamic is a XML sitemap generator for Statamic 3.3 and Statamic 4.0
 
 Sitemapamic creates a sitemap.xml file for your Statamic site, and includes:
 
@@ -25,7 +26,7 @@ Sitemapamic creates a sitemap.xml file for your Statamic site, and includes:
 
 Sitemapamic requires:
 
-- Statamic 3.3+
+- Statamic 3.3 or Statamic 4.0
 - PHP 8.1+
 
 ## Documentation

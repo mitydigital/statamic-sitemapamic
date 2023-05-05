@@ -168,6 +168,11 @@ class Sitemapamic
                             return false;
                         }
 
+                        // are we an external redirect?
+                        if($entry->blueprint()->handle() === 'link' && isset($entry->redirect) && URL::isExternal($entry->redirect)) {
+                            return false;
+                        }
+
                         // if future listings are private or unlisted, do not include
                         if ($entry->collection()->futureDateBehavior() == 'private' || $entry->collection()->futureDateBehavior() == 'unlisted') {
                             if ($entry->date() > now()) {

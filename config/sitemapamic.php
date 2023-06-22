@@ -112,6 +112,8 @@ return [
     | Allows you to map your blueprint fields with what Sitemapamic is expecting for controlling
     | the change frequency, inclusion and priority.
     |
+    | The key is the purpose (i.e. don't change this) and the value is the field handle in your blueprints.
+    |
     */
     'mappings' => [
         'include' => 'meta_include_in_xml_sitemap',

@@ -101,5 +101,21 @@ return [
 
             'categories' => []*/
         ]
+    ],
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Field mappings
+    |--------------------------------------------------------------------------
+    |
+    | Allows you to map your blueprint fields with what Sitemapamic is expecting for controlling
+    | the change frequency, inclusion and priority.
+    |
+    */
+    'mappings' => [
+        'include' => 'meta_include_in_xml_sitemap',
+        'change_frequency' => 'meta_change_frequency',
+        'priority' => 'meta_priority',
     ]
 ];

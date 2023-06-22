@@ -188,7 +188,7 @@ class Sitemapamic
                         }
 
                         // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
-                        $includeInSitemap = $entry->get('meta_include_in_xml_sitemap');
+                        $includeInSitemap = $entry->get(config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap'));
                         if ($includeInSitemap === null || $includeInSitemap == 'default') {
                             // get the default config, or return true by default
                             return config('sitemapamic.defaults.'.$entry->collection()->handle().'.include', true);
@@ -201,7 +201,7 @@ class Sitemapamic
                         return true;
                     })->map(function ($entry) {
 
-                        $changeFreq = $entry->get('meta_change_frequency');
+                        $changeFreq = $entry->get(config('sitemapamic.mappings.change_frequency', 'meta_change_frequency'));
                         if ($changeFreq == 'default') {
                             // clear back to use default
                             $changeFreq = null;
@@ -213,7 +213,7 @@ class Sitemapamic
                             Carbon::parse($entry->get('updated_at'))->toW3cString(),
                             $changeFreq ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.frequency',
                             false),
-                            $entry->get('meta_priority') ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority',
+                            $entry->get(config('sitemapamic.mappings.priority', 'meta_priority')) ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority',
                             false)
                         );
                     })->toArray();
@@ -272,7 +272,7 @@ class Sitemapamic
                             }
 
                             // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
-                            $includeInSitemap = $term->get('meta_include_in_xml_sitemap');
+                            $includeInSitemap = $term->get(config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap'));
                             if ($includeInSitemap === null) {
                                 // get the default config, or return true by default
                                 return config('sitemapamic.defaults.'.$term->collection()->handle().'.include', true);
@@ -300,7 +300,7 @@ class Sitemapamic
                                 }
                             }
 
-                            $changeFreq = $term->get('meta_change_frequency');
+                            $changeFreq = $term->get(config('sitemapamic.mappings.change_frequency', 'meta_change_frequency'));
                             if ($changeFreq == 'default') {
                                 // clear back to use default
                                 $changeFreq = null;
@@ -318,7 +318,7 @@ class Sitemapamic
                                 Carbon::parse($lastMod)->toW3cString(),
                                 $changeFreq ?? config('sitemapamic.defaults.'.$term->collection()->handle().'.frequency',
                                 false),
-                                $term->get('meta_priority') ?? config('sitemapamic.defaults.'.$term->collection()->handle().'.priority',
+                                $term->get(config('sitemapamic.mappings.priority', 'meta_priority')) ?? config('sitemapamic.defaults.'.$term->collection()->handle().'.priority',
                                 false)
                             );
                         });
@@ -371,7 +371,7 @@ class Sitemapamic
                         ->filter(function ($term) {
                             // should we include this term?
                             // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
-                            $includeInSitemap = $term->get('meta_include_in_xml_sitemap');
+                            $includeInSitemap = $term->get(config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap'));
                             if ($includeInSitemap === "false" || $includeInSitemap === false) {
                                 // explicitly set to "false" or boolean false, so exclude
                                 return false;
@@ -400,7 +400,7 @@ class Sitemapamic
                                 }
                             }
 
-                            $changeFreq = $term->get('meta_change_frequency');
+                            $changeFreq = $term->get(config('sitemapamic.mappings.change_frequency', 'meta_change_frequency'));
                             if ($changeFreq == 'default') {
                                 // clear back to use default
                                 $changeFreq = null;
@@ -418,7 +418,7 @@ class Sitemapamic
                                 $changeFreq ??
                                 config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.frequency',
                                     false),
-                                $term->get('meta_priority') ?? config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.priority',
+                                $term->get(config('sitemapamic.mappings.priority', 'meta_priority')) ?? config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.priority',
                                 false)
                             );
                         });

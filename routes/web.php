@@ -10,6 +10,8 @@ use MityDigital\Sitemapamic\Http\Controllers\SitemapamicController;
         // add the standard sitemap.xml
         Route::get('sitemap.xml', [SitemapamicController::class, 'show']);
 
-        // add the submap xml
-        Route::get('sitemap_{submap}.xml', [SitemapamicController::class, 'show']);
+        // add the submap xml if multiple mode is enabled
+        if (config('sitemapamic.mode', 'single') === 'multiple') {
+            Route::get('sitemap_{submap}.xml', [SitemapamicController::class, 'show']);
+        }
     }));

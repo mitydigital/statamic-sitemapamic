@@ -341,10 +341,10 @@ class Sitemapamic
         }
 
         // get the current site key based on the url
-        $site = 'default';
-        foreach (config('statamic.sites.sites') as $key => $props) {
-            if ($props['url'] == url('/')) {
-                $site = $key;
+        $site = Site::default();
+        foreach (Site::all() as $key => $props) {
+            if ($props->url() == url('/')) {
+                $site = $props;
                 break;
             }
         }
@@ -383,7 +383,7 @@ class Sitemapamic
                             // we want to include it. So just include it.
                             return true;
                         })
-                        ->map(function (\Statamic\Taxonomies\LocalizedTerm $term) {
+                        ->map(function (\Statamic\Taxonomies\LocalizedTerm $term) use ($site) {
                             // get the term mod date
                             $lastMod = $term->get('updated_at');
 
@@ -408,7 +408,8 @@ class Sitemapamic
                             }
 
                             // get the site URL, or the app URL if its "/"
-                            $siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
+                            //$siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
+                            $siteUrl = $site->url();
                             if ($siteUrl == '/') {
                                 $siteUrl = config('app.url');
                             }

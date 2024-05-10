@@ -236,7 +236,7 @@ class Sitemapamic
     {
         // get the current site key based on the url
         $site = 'default';
-        foreach (config('statamic.sites.sites') as $key => $props) {
+        foreach (config('statamic.sites.sites', []) as $key => $props) {
             if ($props['url'] == url('/')) {
                 $site = $key;
                 break;

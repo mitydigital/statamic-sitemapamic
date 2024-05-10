@@ -235,10 +235,10 @@ class Sitemapamic
     protected function loadCollectionTerms(): \Illuminate\Support\Collection
     {
         // get the current site key based on the url
-        $site = 'default';
-        foreach (config('statamic.sites.sites', []) as $key => $props) {
-            if ($props['url'] == url('/')) {
-                $site = $key;
+        $site = Site::default();
+        foreach (Site::all() as $key => $props) {
+            if ($props->url() == url('/')) {
+                $site = $props;
                 break;
             }
         }
@@ -267,7 +267,7 @@ class Sitemapamic
                             }
 
                             // site is not configured, so exclude
-                            if (!$term->collection()->sites()->contains($site)) {
+                            if (!$term->collection()->sites()->contains($site->handle())) {
                                 return false;
                             }
 
@@ -282,7 +282,7 @@ class Sitemapamic
                             }
 
                             return true; // this far, accept it
-                        })->map(function ($term) {
+                        })->map(function ($term) use ($site) {
                             // get the term mod date
                             $lastMod = $term->get('updated_at');
 
@@ -308,7 +308,8 @@ class Sitemapamic
 
 
                             // get the site URL, or the app URL if its "/"
-                            $siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
+                            //$siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
+                            $siteUrl = $site->url();
                             if ($siteUrl == '/') {
                                 $siteUrl = config('app.url');
                             }

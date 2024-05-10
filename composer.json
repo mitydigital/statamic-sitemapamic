@@ -18,8 +18,8 @@
         }
     ],
     "require": {
-	"php": "^8.1",
-        "statamic/cms": "^3.3|^4.0|^5.0"
+	    "php": "^8.2",
+        "statamic/cms": "^5.0"
     },
     "extra": {
         "statamic": {
@@ -30,6 +30,11 @@
             "providers": [
                 "MityDigital\\Sitemapamic\\ServiceProvider"
             ]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pixelfear/composer-dist-plugin": true
         }
     }
 }

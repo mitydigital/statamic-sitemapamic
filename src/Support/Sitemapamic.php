@@ -187,6 +187,14 @@ class Sitemapamic
                             }
                         }
 
+                        // if we happened to have the SEO pro addon & we have no index page, do not include
+                        if($entry->has('seo')){
+                            $seo = $entry->get('seo');
+                            if(isset($seo['robots']) && in_array('noindex', $seo['robots'])){
+                                return false;
+                            }
+                        }
+
                         // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
                         $includeInSitemap = $entry->get(config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap'));
                         if ($includeInSitemap === null || $includeInSitemap == 'default') {

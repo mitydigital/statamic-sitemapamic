@@ -189,7 +189,8 @@ class Sitemapamic
                         }
 
                         // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
-                        $includeInSitemap = $entry->get(config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap'));
+                        $includeKey = config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap');
+                        $includeInSitemap = $entry->get($includeKey) ?? $entry->getComputed($includeKey);
                         if ($includeInSitemap === null || $includeInSitemap == 'default') {
                             // get the default config, or return true by default
                             return config('sitemapamic.defaults.'.$entry->collection()->handle().'.include', true);
@@ -202,11 +203,14 @@ class Sitemapamic
                         return true;
                     })->map(function ($entry) {
 
-                        $changeFreq = $entry->get(config('sitemapamic.mappings.change_frequency', 'meta_change_frequency'));
+                        $changeFreqKey = config('sitemapamic.mappings.change_frequency', 'meta_change_frequency');
+                        $changeFreq = $entry->get($changeFreqKey) ?? $entry->getComputed($changeFreqKey);
                         if ($changeFreq == 'default') {
                             // clear back to use default
                             $changeFreq = null;
                         }
+
+                        $priorityKey = config('sitemapamic.mappings.priority', 'meta_priority');
 
                         // return the entry as a Sitemapamic URL
                         return new SitemapamicUrl(
@@ -214,7 +218,7 @@ class Sitemapamic
                             Carbon::parse($entry->get('updated_at'))->toW3cString(),
                             $changeFreq ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.frequency',
                             false),
-                            $entry->get(config('sitemapamic.mappings.priority', 'meta_priority')) ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority',
+                            $entry->get($priorityKey) ?? $entry->getComputed($priorityKey) ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority',
                             false)
                         );
                     })->toArray();

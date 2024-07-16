@@ -51,6 +51,7 @@ help you. So be awesome - it'll feel fantastic.
 
 - [Marty Friedel](https://github.com/martyf)
 - [Jack Sleight](https://github.com/jacksleight) for adding multiple sitemap support
+- [Wuif](https://github.com/wuifdesign) for computed configuration support
 
 ## License
 

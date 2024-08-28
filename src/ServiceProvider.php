@@ -5,6 +5,7 @@ namespace MityDigital\Sitemapamic;
 use MityDigital\Sitemapamic\Commands\ListSitemapamicCacheKeysCommand;
 use MityDigital\Sitemapamic\Listeners\ClearSitemapamicCache;
 use MityDigital\Sitemapamic\Commands\ClearSitemapamicCacheCommand;
+use MityDigital\Sitemapamic\Listeners\ScheduledCacheInvalidated;
 use Statamic\Events\CollectionDeleted;
 use Statamic\Events\CollectionSaved;
 use Statamic\Events\EntryDeleted;
@@ -53,6 +54,9 @@ class ServiceProvider extends AddonServiceProvider
         TermSaved::class         => [
             ClearSitemapamicCache::class,
         ],
+        \MityDigital\StatamicScheduledCacheInvalidator\Events\ScheduledCacheInvalidated::class => [
+            ScheduledCacheInvalidated::class
+        ]
     ];
 
     protected $updateScripts = [

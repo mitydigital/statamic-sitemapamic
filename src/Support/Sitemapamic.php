@@ -170,7 +170,7 @@ class Sitemapamic
 
                         // are we an external redirect?
                         // note the "dirty" trick to make the redirect a string (v4/5 has the ArrayableLink)
-                        if($entry->blueprint()->handle() === 'link' && isset($entry->redirect) && URL::isExternal('' . $entry->redirect)) {
+                        if ($entry->blueprint()->handle() === 'link' && isset($entry->redirect) && URL::isExternal('' . $entry->redirect->url)) {
                             return false;
                         }
 

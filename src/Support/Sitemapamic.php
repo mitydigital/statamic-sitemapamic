@@ -300,7 +300,7 @@ class Sitemapamic
                                 $entryLastMod = $termEntries->first()->get('updated_at');
 
                                 // Check if the $lastMod is being returned as a Carbon instance instead of an int
-                                if (!is_int($lastMod)) {
+                                if ($lastMod && !is_int($lastMod)) {
                                     // Convert to a timestamp if it's a Carbon instance
                                     $lastMod = $lastMod->timestamp;
                                 }

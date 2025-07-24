@@ -29,9 +29,6 @@ class SitemapamicController extends Controller
         $key = Sitemapamic::getCacheKey();
         $ttl = config('sitemapamic.ttl', 'forever');
 
-        // add site to key
-        $key .= '.'.Site::current();
-
         // get the loaders
         $loaders = Sitemapamic::getLoaders();
 
@@ -67,6 +64,9 @@ class SitemapamicController extends Controller
                 };
             }
         }
+
+        // add site to key
+        $key .= '.'.Site::current();
 
         // if the ttl is strictly 'forever', do just that
         if ($ttl == 'forever') {

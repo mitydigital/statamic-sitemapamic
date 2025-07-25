@@ -155,7 +155,7 @@ class Sitemapamic
         return collect(config('sitemapamic.defaults'))->mapWithKeys(function ($properties, $handle) {
             return [
                 $handle => function () use ($properties, $handle) {
-                    return Collection::findByHandle($handle)->queryEntries()->get()->filter(function (
+                    return Collection::findByHandle($handle)->queryEntries()->lazy(100)->filter(function (
                         \Statamic\Entries\Entry $entry
                     ) {
                         // same site? if site is different, remove

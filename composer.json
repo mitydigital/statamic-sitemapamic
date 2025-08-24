@@ -1,6 +1,6 @@
 {
     "name": "mitydigital/sitemapamic",
-    "description": "An XML sitemap generator for Statamic 3, 4 and 5 that includes all collections and related taxonomy pages.",
+    "description": "An XML sitemap generator for Statamic that includes all collections and related taxonomy pages.",
     "type": "statamic-addon",
     "keywords": [
         "statamic",
@@ -19,7 +19,7 @@
     ],
     "require": {
 	    "php": "^8.2",
-        "statamic/cms": "^5.0"
+        "statamic/cms": "^5.0|^6.0"
     },
     "extra": {
         "statamic": {

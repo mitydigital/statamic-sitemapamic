@@ -3,6 +3,7 @@
 <!-- statamic:hide -->
 
 ![Statamic 5.0](https://img.shields.io/badge/Statamic-5.0-FF269E?style=for-the-badge&link=https://statamic.com)
+![Statamic 6.0](https://img.shields.io/badge/Statamic-6.0-FF269E?style=for-the-badge&link=https://statamic.com)
 [![Sitemapamic on Packagist](https://img.shields.io/packagist/v/mitydigital/sitemapamic?style=for-the-badge)](https://packagist.org/packages/mitydigital/sitemapamic/stats)
 
 ---
@@ -25,7 +26,7 @@ Sitemapamic creates a sitemap.xml file for your Statamic site, and includes:
 
 Sitemapamic requires:
 
-- Statamic 5
+- Statamic 5 or 6
 - PHP 8.2+
 
 ## Documentation

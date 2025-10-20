@@ -10,6 +10,7 @@ use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
 use Statamic\Facades\Term;
 use Statamic\Facades\URL;
+use Statamic\Fieldtypes\Link\ArrayableLink;
 
 class Sitemapamic
 {
@@ -170,7 +171,11 @@ class Sitemapamic
 
                         // are we an external redirect?
                         // note the "dirty" trick to make the redirect a string (v4/5 has the ArrayableLink)
-                        if ($entry->blueprint()->handle() === 'link' && isset($entry->redirect) && URL::isExternal('' . $entry->redirect->url)) {
+                        if ($entry->blueprint()->handle() === 'link' && isset($entry->redirect) && (
+                            (get_class($entry->redirect) === ArrayableLink::class && URL::isExternal($entry->redirect->url()))
+                            ||
+                            (property_exists($entry->redirect, 'url') && URL::isExternal($entry->redirect->url))
+                            )) {
                             return false;
                         }
 

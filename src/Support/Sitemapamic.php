@@ -156,7 +156,10 @@ class Sitemapamic
         return collect(config('sitemapamic.defaults'))->mapWithKeys(function ($properties, $handle) {
             return [
                 $handle => function () use ($properties, $handle) {
-                    return Collection::findByHandle($handle)->queryEntries()->lazy(100)->filter(function (
+                    $collection = Collection::findByHandle($handle);
+                    $collectionSites = $collection->sites();
+
+                    return $collection->queryEntries()->lazy(100)->filter(function (
                         \Statamic\Entries\Entry $entry
                     ) {
                         // same site? if site is different, remove
@@ -206,7 +209,7 @@ class Sitemapamic
 
                         // yep, keep it
                         return true;
-                    })->map(function ($entry) {
+                    })->map(function ($entry) use ($collectionSites) {
 
                         $changeFreqKey = config('sitemapamic.mappings.change_frequency', 'meta_change_frequency');
                         $changeFreq = $entry->get($changeFreqKey) ?? $entry->getComputed($changeFreqKey);
@@ -217,7 +220,7 @@ class Sitemapamic
 
                         $priorityKey = config('sitemapamic.mappings.priority', 'meta_priority');
 
-                        $alts = $entry->sites()
+                        $alts = $collectionSites
                             ->map(fn($siteHandle) => $entry->in($siteHandle))
                             ->filter(fn($localized) => $localized && $localized->published())
                             ->map(fn($localized) => [

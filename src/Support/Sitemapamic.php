@@ -217,6 +217,17 @@ class Sitemapamic
 
                         $priorityKey = config('sitemapamic.mappings.priority', 'meta_priority');
 
+                        $alts = $entry->sites()
+                            ->map(fn($siteHandle) => $entry->in($siteHandle))
+                            ->filter(fn($localized) => $localized && $localized->published())
+                            ->map(fn($localized) => [
+                                'hreflang' => str_replace('_', '-', $localized->site()->locale()),
+                                'href' => $localized->absoluteUrl(),
+                            ])
+                            ->values()
+                            ->toArray();
+                        $alternates = count($alts) > 1 ? $alts : [];
+
                         // return the entry as a Sitemapamic URL
                         return new SitemapamicUrl(
                             URL::makeAbsolute($entry->url()),

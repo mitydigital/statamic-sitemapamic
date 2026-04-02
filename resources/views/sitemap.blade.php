@@ -8,9 +8,7 @@
 
         @if ($entry->priority)<priority>{{ number_format($entry->priority, 1) }}</priority>@endif
 
-        @foreach ($entry->alternates as $alternate)
-        <xhtml:link rel="alternate" hreflang="{{ $alternate['hreflang'] }}" href="{{ $alternate['href'] }}"/>
-        @endforeach
+        @foreach ($entry->alternates as $alternate)<xhtml:link rel="alternate" hreflang="{{ $alternate['hreflang'] }}" href="{{ $alternate['href'] }}"/>@endforeach
     </url>
 @endforeach
 </urlset>

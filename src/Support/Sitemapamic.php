@@ -235,7 +235,8 @@ class Sitemapamic
                             $changeFreq ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.frequency',
                             false),
                             $entry->get($priorityKey) ?? $entry->getComputed($priorityKey) ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority',
-                            false)
+                            false),
+                            $alternates
                         );
                     })->toArray();
                 }

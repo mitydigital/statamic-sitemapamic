@@ -76,7 +76,7 @@ class SitemapamicController extends Controller
         }
 
         // add the XML header
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>'.$xml;
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\r\n".$xml;
 
         return response($xml, 200, ['Content-Type' => 'application/xml']);
     }

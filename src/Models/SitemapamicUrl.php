@@ -11,5 +11,6 @@ class SitemapamicUrl
         public string $lastmod,
         public null|string $changefreq = null,
         public null|string $priority = null,
+        public array $alternates = [],
     ){}
 }

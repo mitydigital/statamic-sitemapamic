@@ -53,7 +53,7 @@ help you. So be awesome - it'll feel fantastic.
 - [Marty Friedel](https://github.com/martyf)
 - [Jack Sleight](https://github.com/jacksleight) for adding multiple sitemap support
 - [Wuif](https://github.com/wuifdesign) for computed configuration support
-- [Philipp Daun](https://github.com/daun) for performance and bug fixes
+- [Philipp Daun](https://github.com/daun) for performance, bug fixes and improved multi-site support
 
 ## License
 

@@ -36,7 +36,8 @@ class SitemapamicController extends Controller
             $generator = function () use ($loaders) {
                 $entries = $loaders
                     ->map(fn($loader) => $loader())
-                    ->flatten(1);
+                    ->flatten(1)
+                    ->filter();
                 return view('mitydigital/sitemapamic::sitemap', [
                     'entries' => $entries
                 ])->render();

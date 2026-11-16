@@ -1,30 +1,42 @@
 {
     "name": "mitydigital/sitemapamic",
     "description": "An XML sitemap generator for Statamic that includes all collections and related taxonomy pages.",
-    "type": "statamic-addon",
-    "keywords": [
-        "statamic",
-        "sitemap"
-    ],
-    "autoload": {
-        "psr-4": {
-            "MityDigital\\Sitemapamic\\": "src"
-        }
-    },
     "license": "MIT",
     "authors": [
         {
             "name": "Marty Friedel"
         }
     ],
+    "autoload": {
+        "psr-4": {
+            "MityDigital\\Sitemapamic\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MityDigital\\Sitemapamic\\Tests\\": "tests"
+        }
+    },
     "require": {
-	    "php": "^8.2",
-        "statamic/cms": "^5.0|^6.0"
+        "statamic/cms": "^6.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.8",
+        "pestphp/pest": "^4.7",
+        "laravel/pint": "^1.24",
+        "spatie/laravel-ray": "^1.33",
+        "statamic/eloquent-driver": "^5.13"
+    },
+    "config": {
+        "allow-plugins": {
+            "pixelfear/composer-dist-plugin": true,
+            "pestphp/pest-plugin": true
+        }
     },
     "extra": {
         "statamic": {
             "name": "Sitemapamic",
-            "description": "Adds an XML sitemap to a Statamic site."
+            "description": "Sitemapamic addon"
         },
         "laravel": {
             "providers": [
@@ -32,9 +44,14 @@
             ]
         }
     },
-    "config": {
-        "allow-plugins": {
-            "pixelfear/composer-dist-plugin": true
-        }
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "pint": [
+            "./vendor/bin/pint"
+        ],
+        "test": [
+            "php -d memory_limit=-1 -d max_execution_time=0 ./vendor/bin/pest"
+        ]
     }
 }

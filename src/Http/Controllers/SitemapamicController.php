@@ -2,83 +2,57 @@
 
 namespace MityDigital\Sitemapamic\Http\Controllers;
 
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Cache;
-use MityDigital\Sitemapamic\Facades\Sitemapamic;
-use MityDigital\Sitemapamic\Models\SitemapamicUrl;
-use Statamic\Entries\EntryCollection;
-use Statamic\Facades\Collection;
+use MityDigital\Sitemapamic\Exceptions\SitemapBusyException;
+use MityDigital\Sitemapamic\Support\Sitemapamic;
 use Statamic\Facades\Site;
-use Statamic\Facades\Taxonomy;
-use Statamic\Facades\Term;
-use Statamic\Facades\URL;
-use Statamic\GraphQL\Queries\CollectionQuery;
+use Symfony\Component\HttpFoundation\Response;
 
-class SitemapamicController extends Controller
+class SitemapamicController
 {
-    /**
-     * Gets the cached sitemap (or renders if it needs to)
-     *
-     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Http\Response
-     */
-    public function show(Request $request)
+    public function __construct(private Sitemapamic $sitemapamic) {}
+
+    public function index(Request $request): Response
     {
-        $mode = config('sitemapamic.mode', 'single');
-        $key = Sitemapamic::getCacheKey();
-        $ttl = config('sitemapamic.ttl', 'forever');
+        return $this->respond($request, 'sitemap.xml');
+    }
 
-        // get the loaders
-        $loaders = Sitemapamic::getLoaders();
+    public function show(Request $request, string $sitemap): Response
+    {
+        return $this->respond($request, 'sitemap-'.$sitemap.'.xml');
+    }
 
-        if ($mode === 'single') {
-            $generator = function () use ($loaders) {
-                $entries = $loaders
-                    ->map(fn($loader) => $loader())
-                    ->flatten(1)
-                    ->filter();
-                return view('mitydigital/sitemapamic::sitemap', [
-                    'entries' => $entries
-                ])->render();
-            };
-        } elseif ($mode === 'multiple') {
-            if ($request->submap) {
-                if (!$loaders->has($request->submap)) {
-                    abort(404);
-                }
-                $key .= '.'.$request->submap;
+    private function respond(Request $request, string $filename): Response
+    {
+        $site = Site::get($request->route('sitemapamic_site'));
+        abort_if($site === null, 404);
 
-                $generator = function () use ($loaders, $request) {
-                    $entries = $loaders->get($request->submap)();
-                    return view('mitydigital/sitemapamic::sitemap', [
-                        'entries' => $entries
-                    ])->render();
-                };
-            } else {
-                $generator = function () use ($loaders) {
-                    // return the view with submaps defined
-                    return view('mitydigital/sitemapamic::index', [
-                        'domain' => rtrim(URL::makeAbsolute(Site::current()->url()), '/\\'),
-                        'submaps' => $loaders->keys()
-                    ])->render();
-                };
+        // another request is building and there is nothing to serve yet
+        try {
+            $document = $this->sitemapamic->document($site, $filename);
+        } catch (SitemapBusyException) {
+            return response('', 503, ['Retry-After' => '10']);
+        }
+
+        abort_if($document === null, 404);
+
+        $headers = [
+            'Content-Type' => 'application/xml; charset=UTF-8',
+            'Content-Length' => (string) $document->bytes,
+        ];
+
+        if ($request->isMethod('HEAD')) {
+            fclose($document->stream);
+
+            return response('', 200, $headers);
+        }
+
+        return response()->stream(function () use ($document): void {
+            try {
+                fpassthru($document->stream);
+            } finally {
+                fclose($document->stream);
             }
-        }
-
-        // add site to key
-        $key .= '.'.Site::current();
-
-        // if the ttl is strictly 'forever', do just that
-        if ($ttl == 'forever') {
-            $xml = Cache::rememberForever($key, $generator);
-        } else {
-            $xml = Cache::remember($key, $ttl, $generator);
-        }
-
-        // add the XML header
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\r\n".$xml;
-
-        return response($xml, 200, ['Content-Type' => 'application/xml']);
+        }, 200, $headers);
     }
 }

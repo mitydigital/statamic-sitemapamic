@@ -2,7 +2,6 @@
 
 <!-- statamic:hide -->
 
-![Statamic 5.0](https://img.shields.io/badge/Statamic-5.0-FF269E?style=for-the-badge&link=https://statamic.com)
 ![Statamic 6.0](https://img.shields.io/badge/Statamic-6.0-FF269E?style=for-the-badge&link=https://statamic.com)
 [![Sitemapamic on Packagist](https://img.shields.io/packagist/v/mitydigital/sitemapamic?style=for-the-badge)](https://packagist.org/packages/mitydigital/sitemapamic/stats)
 
@@ -14,20 +13,18 @@
 
 Sitemapamic creates a sitemap.xml file for your Statamic site, and includes:
 
-- automatic route registration for `sitemap.xml`
-- automatic updates as your content changes
-- support for entries and taxonomies
-- caching for performance (with a set time, or until content changes)
-- support for multi-site on the same or different domains
-- support for splitting large sites in to multiple smaller sitemaps
-- console commands for manual cache clearing
+- support for entries, taxonomies and your own routes
+- performant and memory-friendly for large sites
+- automatic route discovery, or defined collections and taxonomies
+- automated splitting in to smaller sitemaps
+- caching for performance (with a ttl, or until content changes)
+- updates as your content changes
 
 ---
 
 Sitemapamic requires:
 
-- Statamic 5 or 6
-- PHP 8.2+
+- Statamic 6
 
 ## Documentation
 
@@ -50,6 +47,10 @@ help you. So be awesome - it'll feel fantastic.
 
 ## Credits
 
+### Version 4:
+- [Marty Friedel](https://github.com/martyf)
+
+### Versions 2 and 3
 - [Marty Friedel](https://github.com/martyf)
 - [Jack Sleight](https://github.com/jacksleight) for adding multiple sitemap support
 - [Wuif](https://github.com/wuifdesign) for computed configuration support

@@ -24,21 +24,18 @@ class SiteUrls
         return URL::tidy(self::baseUrl($site).'/'.ltrim($uri, '/'));
     }
 
+    /** The path a site's sitemap routes sit under, without slashes, e.g. '' or 'de'. */
+    public static function pathPrefix(Site $site): string
+    {
+        return trim(parse_url(self::baseUrl($site), PHP_URL_PATH) ?? '', '/');
+    }
+
     public static function sitemapUrl(Site $site, string $filename = 'sitemap.xml'): string
     {
-        $routeName = 'sitemapamic.'.$site->handle().'.';
-        if ($filename === 'sitemap.xml') {
-            $path = route($routeName.'index', [], false);
-        } elseif (preg_match('/^sitemap-([A-Za-z0-9_-]+)\.xml$/D', $filename, $matches)) {
-            $path = route($routeName.'show', ['sitemap' => $matches[1]], false);
-        } else {
+        if ($filename !== 'sitemap.xml' && ! preg_match('/^sitemap-[A-Za-z0-9_-]+\.xml$/D', $filename)) {
             throw new InvalidArgumentException('Invalid sitemap filename: '.$filename);
         }
 
-        // route() would take the scheme from the request and drop the port, so use the site's own URL
-        $base = parse_url(self::baseUrl($site));
-        $origin = $base['scheme'].'://'.$base['host'].(isset($base['port']) ? ':'.$base['port'] : '');
-
-        return $origin.$path;
+        return self::baseUrl($site).'/'.$filename;
     }
 }

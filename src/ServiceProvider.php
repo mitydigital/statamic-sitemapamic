@@ -9,7 +9,9 @@ use MityDigital\Sitemapamic\Fieldtypes\ChangeFrequencyFieldtype;
 use MityDigital\Sitemapamic\Listeners\ClearSitemapamicCache;
 use MityDigital\Sitemapamic\Support\Content\DynamicRoutes;
 use MityDigital\Sitemapamic\Support\Sitemapamic;
+use MityDigital\Sitemapamic\Support\StaticSite\StaticSiteUrls;
 use Statamic\Providers\AddonServiceProvider;
+use Statamic\StaticSite\Generator;
 
 class ServiceProvider extends AddonServiceProvider
 {
@@ -44,5 +46,12 @@ class ServiceProvider extends AddonServiceProvider
         $this->publishes([
             __DIR__.'/../resources/views' => resource_path('views/vendor/sitemapamic'),
         ], 'sitemapamic-views');
+
+        // the static site generator only writes the URLs it is given; adding them on resolve keeps it out of ordinary requests
+        if (class_exists(Generator::class)) {
+            $this->app->afterResolving(Generator::class, function (Generator $generator): void {
+                $generator->addUrls(fn (): array => $this->app->make(StaticSiteUrls::class)->urls());
+            });
+        }
     }
 }

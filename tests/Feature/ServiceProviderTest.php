@@ -16,18 +16,26 @@ use Statamic\Facades\Site;
 
 uses(UsesSitemapSites::class);
 
-it('registers exactly two named serialisable routes per configured site', function (): void {
-    $routes = collect(Route::getRoutes()->getRoutes())->filter(fn ($route): bool => str_starts_with($route->getName() ?? '', 'sitemapamic.'));
+it('registers two named path-only serialisable routes per distinct site prefix', function (): void {
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->filter(fn ($route): bool => str_starts_with($route->getActionName(), SitemapamicController::class.'@'));
 
-    expect($routes)->toHaveCount(2 * Site::all()->count());
-    foreach (Site::all() as $site) {
-        foreach (['index', 'show'] as $action) {
-            $route = Route::getRoutes()->getByName('sitemapamic.'.$site->handle().'.'.$action);
-            expect($route->methods())->toBe(['GET', 'HEAD'])
-                ->and($route->getActionName())->toBe(SitemapamicController::class.'@'.$action)
-                ->and($route->defaults['sitemapamic_site'])->toBe($site->handle());
-            $route->prepareForSerialization();
-        }
+    expect($routes->mapWithKeys(fn ($route): array => [$route->getName() => $route->uri()])->sortKeys()->all())->toBe([
+        'sitemapamic.branch.index' => 'branch/sitemap.xml',
+        'sitemapamic.branch.show' => 'branch/sitemap-{sitemap}.xml',
+        'sitemapamic.deep.index' => 'deep/sitemap.xml',
+        'sitemapamic.deep.show' => 'deep/sitemap-{sitemap}.xml',
+        'sitemapamic.index' => 'sitemap.xml',
+        'sitemapamic.nested.index' => 'nested/sitemap.xml',
+        'sitemapamic.nested.region.index' => 'nested/region/sitemap.xml',
+        'sitemapamic.nested.region.show' => 'nested/region/sitemap-{sitemap}.xml',
+        'sitemapamic.nested.show' => 'nested/sitemap-{sitemap}.xml',
+        'sitemapamic.show' => 'sitemap-{sitemap}.xml',
+    ]);
+    foreach ($routes as $route) {
+        expect($route->getDomain())->toBeNull()
+            ->and($route->methods())->toBe(['GET', 'HEAD']);
+        $route->prepareForSerialization();
     }
 });
 
@@ -64,8 +72,8 @@ it('takes precedence over the native Statamic catch-all route', function (string
     expect($route->getActionName())->toBe(SitemapamicController::class.'@index');
 })->with(['http://example.test/sitemap.xml', 'http://example.test/nested/region/sitemap.xml', 'https://island.example.test/branch/sitemap.xml']);
 
-it('permits an explicit application route to replace an endpoint on its own domain', function (): void {
-    Route::domain('example.test')->get('sitemap.xml', fn () => response('application override'));
+it('permits an explicit application route to replace an endpoint at its path', function (): void {
+    Route::get('sitemap.xml', fn () => response('application override'));
 
     $this->get('http://example.test/sitemap.xml')->assertOk()->assertContent('application override');
     expect(Route::getRoutes()->match(Request::create('https://island.example.test/branch/sitemap.xml'))->getActionName())

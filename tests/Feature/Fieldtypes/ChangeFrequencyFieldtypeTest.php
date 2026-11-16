@@ -3,9 +3,9 @@
 use MityDigital\Sitemapamic\Dictionaries\ChangeFrequencies;
 use MityDigital\Sitemapamic\Fieldtypes\ChangeFrequencyFieldtype;
 use Statamic\Dictionaries\Item;
-use Statamic\Fieldtypes\Dictionary;
-use Statamic\Fields\FieldtypeRepository;
 use Statamic\Fields\Field;
+use Statamic\Fields\FieldtypeRepository;
+use Statamic\Fieldtypes\Dictionary;
 
 function changeFrequencyFieldtype(array $config = []): ChangeFrequencyFieldtype
 {

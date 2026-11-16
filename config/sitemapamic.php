@@ -1,108 +1,111 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
-    | Mode
+    | Discovery
     |--------------------------------------------------------------------------
     |
-    | Generate a single sitemap or separate sitemaps per collection/taxonomy etc.
+    | By default, with "*", routeable content will be automatically discovered, including Taxonomies
+    | within configured Collections.
     |
-    | Can be 'single' or 'multiple'
+    | You can keep "*" and then provide a Collection/Taxonomy's handle, and set it to false to
+    | auto-discover but exclude the false collection:
+    |   'collections' => [
+    |       '*',
+    |       'support' => false
+    |   ],
+    |
+    | This would auto-discover all collections, but exclude support (even if it is routeable).
+    |
+    | With auto-discovery, Taxonomies for Collections will be included too. You can set explicit Taxonomies
+    | to include with:
+    |   'collections' => [
+    |       'blog' => [
+    |           'taxonomies' => [
+    |               'tags'
+    |           ]
+    |       ]
+    |   ],
+    |
+    | This would include only the "blog" Collection and only the "tags" Taxonomy for the Blog, even if there are
+    | other Taxonomies in the site.
+    |
+    | You can do this for Taxonomies too:
+    |   'taxonomies' => [
+    |       '*',
+    |       'internal' => false
+    |   ],
+    |
+    | This discovers all Taxonomies, but excludes "internal".
     |
     */
+    'collections' => ['*'],
 
-    'mode' => 'single',
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cache Key
-    |--------------------------------------------------------------------------
-    |
-    | The key used to store the output. Will be cached forever until EventSaved or TermSaved is fired.
-    |
-    */
-
-    'cache' => 'sitemapamic',
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cache Duration
-    |--------------------------------------------------------------------------
-    |
-    | The number of seconds for how long the Sitemapamic Cache be held for.
-    |
-    | Can be an integer or DateInterval - the same options that Laravel's Cache accepts.
-    |
-    | Or set to 'forever' to remember forever (don't worry, it will get cleared when an Entry,
-    | Term, Taxonomy or Collection is saved or deleted.
-    |
-    */
-
-    'ttl' => 'forever',
-
+    'taxonomies' => ['*'],
 
     /*
     |--------------------------------------------------------------------------
     | Defaults
     |--------------------------------------------------------------------------
     |
-    | Sets defaults for different collections.
+    | The changefreq and priority to use when an Entry or Term has no valid value in its mapped field.
+    | Leave either as null to omit it from the sitemap when no mapping is found.
     |
-    | The key is the collection handle, and the array includes default configurations.
-    |   Set "include" to true to either include or exclude without explicitly setting per article
-    |   Frequency and Priority are standard for an XML sitemap
+    | A Collection or Taxonomy can set its own too, which will be used instead of defaults:
+    |   'collections' => [
+    |       'pages' => [
+    |           'changefreq' => 'yearly',
+    |           'priority' => 0.5,
+    |       ]
+    |   ],
     |
-    | 'includeTaxonomies' enables (or disables) whether taxonomy URLs will be generated, if used,
-    | for the collection. Only applies to Collections that actually use Taxonomies.
+    | Term pages within a Collection use their Taxonomy's defaults.
+    |
+    | changefreq can be always, hourly, daily, weekly, monthly, yearly or never.
+    | priority can be a number from 0 to 1.
     |
     */
-
     'defaults' => [
-        /*'blog' => [
-            'include'   => true,
-            'frequency' => 'weekly',
-            'priority'  => '0.7'
-        ],*/
-
-        'pages' => [
-            'include'           => true,
-            'frequency'         => 'yearly',
-            'priority'          => '0.5',
-            'includeTaxonomies' => true,
-        ]
+        'changefreq' => null,
+        'priority' => null,
     ],
-
 
     /*
     |--------------------------------------------------------------------------
-    | Globals
+    | Mode
     |--------------------------------------------------------------------------
     |
-    | Sets global behaviour for items like taxonomies. Currently that's all that is supported.
+    | "automatic" creates a sitemap.xml index, with separate files for each Collection and Taxonomy.
     |
-    | The 'globals.taxonomies' key expects an array of Taxonomy handles, each with an optional
-    | priority and frequency, just like the Defaults section. This means your Taxonomy blueprint
-    | can also take advantage of Term-specific 'meta_change_frequency' and 'meta_priority' fields,
-    | or fall back to these defaults when not set (or present).
-    |
-    | If you don't want the Taxonomy included in the sitemap, simply exclude it from the array.
+    | "single" merges everything into a single sitemap.xml file, which may suit smaller sites. If it
+    | outgrows one file (50,000 URLs or 50MB), it is split into numbered files with a sitemap.xml index.
     |
     */
-    'globals'  => [
-        'taxonomies' => [
-            /*'tags' => [
-                'frequency' => 'yearly',
-                'priority'  => '0.5',
-            ],
+    'mode' => 'automatic',
 
-            'categories' => []*/
-        ]
+    /*
+    |--------------------------------------------------------------------------
+    | Caching
+    |--------------------------------------------------------------------------
+    |
+    | For performance, your sitemap can be cached.
+    |
+    | By default, it is enabled, will live forever (until content is changed, or you clear it), and will be
+    | stored on your "local" disk.
+    |
+    | All of these can be adjusted by env variables.
+    |
+    */
+    'cache' => [
+        'enabled' => env('SITEMAPAMIC_CACHE_ENABLED', true),
+
+        'key' => 'sitemapamic',
+
+        'ttl' => env('SITEMAPAMIC_CACHE_TTL'),
+
+        'disk' => env('SITEMAPAMIC_CACHE_DISK', 'local'),
     ],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -112,12 +115,16 @@ return [
     | Allows you to map your blueprint fields with what Sitemapamic is expecting for controlling
     | the change frequency, inclusion and priority.
     |
+    | Can also be a handle for a computed property, although does slow down generation.
+    |
     | The key is the purpose (i.e. don't change this) and the value is the field handle in your blueprints.
     |
     */
     'mappings' => [
         'include' => 'meta_include_in_xml_sitemap',
-        'change_frequency' => 'meta_change_frequency',
+
+        'changefreq' => 'meta_change_frequency',
+
         'priority' => 'meta_priority',
-    ]
+    ],
 ];

@@ -2,23 +2,30 @@
 
 namespace MityDigital\Sitemapamic\Facades;
 
+use Closure;
 use Illuminate\Support\Facades\Facade;
+use MityDigital\Sitemapamic\Data\Manifest;
+use MityDigital\Sitemapamic\Data\SitemapDocument;
+use MityDigital\Sitemapamic\Support\Sitemapamic as Support;
+use Statamic\Sites\Site;
 
 /**
- * @method static string addDynamicRoutes($routesClosure)
- * @method static getDynamicRoutes() : array
- * @method static getLoaders() : array
- * @method static getCacheKey() : string|mixed
- * @method static getCacheKeys() : array
- * @method static array clearCache(array $keys) : bool
- * @method static hasDynamicRoutes() : bool
+ * @method static void addDynamicRoutes(Closure $routes, array|string|null $sites = null)
+ * @method static string url(Site|string|null $site = null, string $filename = 'sitemap.xml')
+ * @method static Manifest manifest(Site|string|null $site = null)
+ * @method static void clearCache(Site|string|null $site = null)
+ * @method static void markStale(Site|string|null $site = null)
+ * @method static SitemapDocument|null document(Site $site, string $filename)
  *
- * @see MityDigita\Sitemapamic\Support\Sitemapamic
+ * @see Support
  */
 class Sitemapamic extends Facade
 {
-    protected static function getFacadeAccessor()
+    // the service is scoped, so resolve it from the container on every call
+    protected static $cached = false;
+
+    protected static function getFacadeAccessor(): string
     {
-        return \MityDigital\Sitemapamic\Support\Sitemapamic::class;
+        return Support::class;
     }
 }

@@ -2,72 +2,47 @@
 
 namespace MityDigital\Sitemapamic;
 
-use MityDigital\Sitemapamic\Commands\ListSitemapamicCacheKeysCommand;
+use MityDigital\Sitemapamic\Commands\ClearCacheCommand;
+use MityDigital\Sitemapamic\Commands\ListSitemapsCommand;
+use MityDigital\Sitemapamic\Dictionaries\ChangeFrequencies;
+use MityDigital\Sitemapamic\Fieldtypes\ChangeFrequencyFieldtype;
 use MityDigital\Sitemapamic\Listeners\ClearSitemapamicCache;
-use MityDigital\Sitemapamic\Commands\ClearSitemapamicCacheCommand;
-use MityDigital\Sitemapamic\Listeners\ScheduledCacheInvalidated;
-use Statamic\Events\CollectionDeleted;
-use Statamic\Events\CollectionSaved;
-use Statamic\Events\EntryDeleted;
-use Statamic\Events\EntrySaved;
-use Statamic\Events\TaxonomyDeleted;
-use Statamic\Events\TaxonomySaved;
-use Statamic\Events\TermDeleted;
-use Statamic\Events\TermSaved;
+use MityDigital\Sitemapamic\Support\Content\DynamicRoutes;
+use MityDigital\Sitemapamic\Support\Sitemapamic;
 use Statamic\Providers\AddonServiceProvider;
 
 class ServiceProvider extends AddonServiceProvider
 {
-    protected $viewNamespace = 'mitydigital/sitemapamic';
+    protected $viewNamespace = 'sitemapamic';
 
     protected $commands = [
-        ClearSitemapamicCacheCommand::class,
-        ListSitemapamicCacheKeysCommand::class
+        ClearCacheCommand::class,
+        ListSitemapsCommand::class,
     ];
 
-    protected $routes = [
-        'web' => __DIR__.'/../routes/web.php',
+    protected $dictionaries = [
+        ChangeFrequencies::class,
     ];
 
-    protected $listen = [
-        CollectionDeleted::class => [
-            ClearSitemapamicCache::class,
-        ],
-        CollectionSaved::class   => [
-            ClearSitemapamicCache::class,
-        ],
-        EntryDeleted::class      => [
-            ClearSitemapamicCache::class,
-        ],
-        EntrySaved::class        => [
-            ClearSitemapamicCache::class,
-        ],
-        TaxonomyDeleted::class   => [
-            ClearSitemapamicCache::class,
-        ],
-        TaxonomySaved::class     => [
-            ClearSitemapamicCache::class,
-        ],
-        TermDeleted::class       => [
-            ClearSitemapamicCache::class,
-        ],
-        TermSaved::class         => [
-            ClearSitemapamicCache::class,
-        ],
-        \MityDigital\StatamicScheduledCacheInvalidator\Events\ScheduledCacheInvalidated::class => [
-            ScheduledCacheInvalidated::class
-        ]
+    protected $fieldtypes = [
+        ChangeFrequencyFieldtype::class,
     ];
 
-    protected $updateScripts = [
-        // v2.0.1
-        \MityDigital\Sitemapamic\UpdateScripts\v2_0_1\MoveConfigFile::class
+    protected $subscribe = [
+        ClearSitemapamicCache::class,
     ];
 
-    public function bootAddon()
+    public function register(): void
+    {
+        // the service is rebuilt for each request; boot-time dynamic routes must outlive requests
+        $this->app->scoped(Sitemapamic::class);
+        $this->app->singleton(DynamicRoutes::class);
+    }
+
+    public function bootAddon(): void
     {
         $this->publishes([
-            __DIR__.'/../resources/views' => resource_path('views/vendor/mitydigital/sitemapamic'),
+            __DIR__.'/../resources/views' => resource_path('views/vendor/sitemapamic'),
         ], 'sitemapamic-views');
     }
 }

@@ -2,490 +2,265 @@
 
 namespace MityDigital\Sitemapamic\Support;
 
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
-use MityDigital\Sitemapamic\Models\SitemapamicUrl;
-use Statamic\Facades\Collection;
-use Statamic\Facades\Site;
-use Statamic\Facades\Taxonomy;
-use Statamic\Facades\Term;
-use Statamic\Facades\URL;
-use Statamic\Fieldtypes\Link\ArrayableLink;
+use Closure;
+use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use InvalidArgumentException;
+use MityDigital\Sitemapamic\Data\Manifest;
+use MityDigital\Sitemapamic\Data\SitemapDocument;
+use MityDigital\Sitemapamic\Data\SitemapFile;
+use MityDigital\Sitemapamic\Exceptions\SitemapBusyException;
+use MityDigital\Sitemapamic\Support\Cache\SitemapCache;
+use MityDigital\Sitemapamic\Support\Content\DynamicRoutes;
+use MityDigital\Sitemapamic\Support\Manifest\Builder;
+use Statamic\Facades\Site as Sites;
+use Statamic\Sites\Site;
+use stdClass;
+use Throwable;
 
 class Sitemapamic
 {
-    protected $dynamicRoutes = [];
+    private const int LOCK_WAIT_SECONDS = 10;
 
-    /**
-     * Add a closure that creates dynamic routes for Sitemapamic.
-     *
-     * @see https://docs.mity.com.au/sitemapamic/configuration/dynamic-routes
-     *
-     * @param $routesClosure
-     * @return void
-     */
-    public function addDynamicRoutes($routesClosure)
+    public function __construct(
+        private DynamicRoutes $dynamicRoutes,
+        private Builder $builder,
+        private SitemapCache $cache,
+        private Configuration $configuration,
+    ) {}
+
+    public function addDynamicRoutes(Closure $routes, array|string|null $sites = null): void
     {
-        $this->dynamicRoutes[] = $routesClosure;
+        $this->dynamicRoutes->add($routes, $sites);
     }
 
-    /**
-     * Clears the Sitemapamic cache.
-     *
-     * Accepts an array of keys when 'mode' is set to 'multiple'. This will allow individual sitemaps to be cleared.
-     *
-     * Passing nothing, or an empty array, will clear the entire Sitemapamic cache.
-     *
-     * @param  array  $keys  An array of keys, only for "multiple" configuration.
-     * @return bool
-     */
-    public function clearCache(array $keys = []): bool
+    public function url(Site|string|null $site = null, string $filename = 'sitemap.xml'): string
     {
-        if (count($keys) === 0) {
-            // clear everything
-            foreach ($this->getCacheKeys() as $key) {
-                Cache::forget($key);
-            }
-        } else {
-            // only clear what was requested
-            $siteKey = $this->getCacheKey();
-            foreach ($keys as $key) {
-                if (starts_with($key, $siteKey.'.')) {
-                    // we already have the cache key, so exclude it
-                    Cache::forget($key);
-                } else {
-                    // add the cache key
-                    Cache::forget($this->getCacheKey().'.'.$key);
-                }
-            }
+        return SiteUrls::sitemapUrl($this->resolveSite($site), $filename);
+    }
+
+    public function manifest(Site|string|null $site = null): Manifest
+    {
+        $site = $this->resolveSite($site);
+        if (! $this->cache->enabled()) {
+            return $this->buildWithoutStoring($site);
         }
 
-        return true;
+        return $this->currentManifest($site);
     }
 
-    /**
-     * Get the cache keys used by the current Sitemapamic configuration.
-     *
-     * @return array
-     */
-    public function getCacheKeys()
+    public function clearCache(Site|string|null $site = null): void
     {
-        $key = $this->getCacheKey();
-        $mode = config('sitemapamic.mode', 'single');
+        foreach ($this->siteHandles($site) as $handle) {
+            $this->cache->clear($handle);
+        }
+    }
 
-        $keys = [];
-        $sites = collect(Site::all()->keys());
+    public function markStale(Site|string|null $site = null): void
+    {
+        foreach ($this->siteHandles($site) as $handle) {
+            $this->cache->markStale($handle);
+        }
+    }
 
-        if ($mode === 'single') {
-            if ($sites->count() > 1) {
-                // return the single statamic key for each site
-                return $sites
-                    ->map(fn($site) => $key.'.'.$site)
-                    ->toArray();
-            } else {
-                // just return the key
-                return [$key.'.'.Site::default()];
-            }
-        } elseif ($mode === 'multiple') {
-            // get the loaders
-            $loaders = $this->getLoaders();
-
-            // get the keys relevant to the setup
-            if ($sites->count() > 1) {
-                return $this->getLoaders()
-                    ->keys()
-                    ->map(fn($loader) => $key.'.'.$loader)
-                    ->prepend($key)
-                    ->map(fn($key) => $sites
-                        ->map(fn($site) => $key.'.'.$site))
-                    ->flatten()
-                    ->toArray();
-            } else {
-                return $this->getLoaders()
-                    ->keys()
-                    ->map(fn($loader) => $key.'.'.$loader)
-                    ->prepend($key)
-                    ->toArray();
-            }
+    public function document(Site $site, string $filename): ?SitemapDocument
+    {
+        if (! $this->cache->enabled()) {
+            return $this->uncachedDocument($site, $filename);
         }
 
-        return [];
+        try {
+            return $this->cache->open($this->currentManifest($site), $filename);
+        } catch (SitemapBusyException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            // the cache failed, so build this one response without it
+            report($exception);
+
+            return $this->uncachedDocument($site, $filename);
+        }
     }
 
-    /**
-     * Returns the root Sitemapamic cache key.
-     *
-     * @return string|mixed
-     */
-    public function getCacheKey()
+    private function currentManifest(Site $site): Manifest
     {
-        return config('sitemapamic.cache', 'sitemapamic');
-    }
-
-    /**
-     * Get all of the content loaders used by the current configuration.
-     *
-     * Includes entries, collection terms, global taxonomies and dynamic routes.
-     *
-     * @return \Illuminate\Support\Collection
-     */
-    public function getLoaders()
-    {
-        $loaders = collect()
-            ->merge($this->loadEntries())
-            ->merge($this->loadCollectionTerms())
-            ->merge($this->loadGlobalTaxonomies());
-
-        // if we have any dynamic routes, let's load those too
-        if ($this->hasDynamicRoutes()) {
-            $loaders = $loaders->merge($this->loadDynamicRoutes());
+        $manifest = $this->cache->manifest($site->handle());
+        if ($manifest !== null && $this->cache->isFresh($manifest)) {
+            return $manifest;
         }
 
-        return $loaders;
+        $lock = $this->cache->lock($site->handle());
+
+        // with something to serve, don't wait for another request's build
+        if ($manifest !== null && ! $lock->get()) {
+            return $manifest;
+        }
+
+        // if there's no manifest, wait for the lock
+        if ($manifest === null) {
+            $this->waitForLock($lock, $site);
+        }
+
+        try {
+            // another request may have just published
+            $latest = $this->cache->manifest($site->handle());
+            if ($latest !== null && $this->cache->isFresh($latest)) {
+                return $latest;
+            }
+
+            return $this->rebuild($site, $latest);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function waitForLock(Lock $lock, Site $site): void
+    {
+        try {
+            $lock->block(self::LOCK_WAIT_SECONDS);
+        } catch (LockTimeoutException) {
+            throw new SitemapBusyException('The sitemap for site '.$site->handle().' is being built.');
+        }
+    }
+
+    private function rebuild(Site $site, ?Manifest $stale): Manifest
+    {
+        // publish only if no content changed while building, and try twice
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $version = $this->cache->version($site->handle());
+            $manifest = $this->buildAndStore($site, $version);
+
+            if ($this->cache->version($site->handle()) === $version) {
+                $this->cache->publish($manifest);
+
+                return $manifest;
+            }
+
+            $this->cache->deleteDirectory($manifest->directory);
+        }
+
+        if ($stale !== null) {
+            return $stale;
+        }
+
+        throw new SitemapBusyException('The content for site '.$site->handle().' kept changing during the build.');
+    }
+
+    private function buildAndStore(Site $site, string $version): Manifest
+    {
+        $directory = $this->cache->newDirectory($site->handle());
+
+        try {
+            $store = fn (string $filename, $stream) => $this->storeFile($directory, $filename, $stream);
+            $files = $this->builder->generate($site, $store);
+        } catch (Throwable $exception) {
+            $this->cache->deleteDirectory($directory);
+
+            throw $exception;
+        }
+
+        return $this->newManifest($site, $version, $directory, $files);
+    }
+
+    /** @param resource $stream */
+    private function storeFile(string $directory, string $filename, $stream): void
+    {
+        try {
+            $this->cache->store($directory, $filename, $stream);
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    private function uncachedDocument(Site $site, string $filename): ?SitemapDocument
+    {
+        $kept = new stdClass;
+        $kept->stream = null;
+
+        try {
+            $keep = fn (string $name, $stream) => $this->keepOnly($kept, $filename, $name, $stream);
+            $files = $this->builder->generate($site, $keep);
+        } catch (Throwable $exception) {
+            if ($kept->stream !== null) {
+                fclose($kept->stream);
+            }
+
+            throw $exception;
+        }
+
+        $file = $this->newManifest($site, '', '', $files)->file($filename);
+        if ($file === null) {
+            return null;
+        }
+
+        return new SitemapDocument($kept->stream, $file->bytes);
+    }
+
+    /** @param resource $stream */
+    private function keepOnly(stdClass $kept, string $wanted, string $filename, $stream): void
+    {
+        if ($filename === $wanted) {
+            $kept->stream = $stream;
+
+            return;
+        }
+
+        fclose($stream);
+    }
+
+    private function buildWithoutStoring(Site $site): Manifest
+    {
+        $files = $this->builder->generate($site, fn (string $filename, $stream) => fclose($stream));
+
+        return $this->newManifest($site, '', '', $files);
+    }
+
+    /** @param array{files: list<SitemapFile>, index: ?SitemapFile} $files */
+    private function newManifest(Site $site, string $version, string $directory, array $files): Manifest
+    {
+        $builtAt = now()->getTimestamp();
+        $ttl = $this->configuration->ttl();
+
+        return new Manifest(
+            site: $site->handle(),
+            version: $version,
+            directory: $directory,
+            builtAt: $builtAt,
+            expiresAt: $ttl === null ? null : $builtAt + $ttl,
+            configHash: $this->cache->configHash(),
+            files: collect($files['files'])->keyBy('filename')->all(),
+            index: $files['index'],
+        );
     }
 
     /**
-     * Gets all published entries for all configured collections.
+     * Null is every site. A Site object is used as given, so a deleted site can still be cleared.
      *
-     * Returns a collection of \MityDigital\Sitemapamic\Models\SitemapamicUrl
-     *
-     * @return \Illuminate\Support\Collection
+     * @return list<string>
      */
-    protected function loadEntries(): \Illuminate\Support\Collection
+    private function siteHandles(Site|string|null $site): array
     {
-        return collect(config('sitemapamic.defaults'))->mapWithKeys(function ($properties, $handle) {
-            return [
-                $handle => function () use ($properties, $handle) {
-                    $collection = Collection::findByHandle($handle);
-                    $collectionSites = $collection->sites();
-
-                    return $collection->queryEntries()->lazy(100)->filter(function (
-                        \Statamic\Entries\Entry $entry
-                    ) {
-                        // same site? if site is different, remove
-                        if ($entry->site() != Site::current()) {
-                            return false;
-                        }
-
-                        // is the entry published?
-                        if (!$entry->published()) {
-                            return false;
-                        }
-
-                        // are we an external redirect?
-                        // note the "dirty" trick to make the redirect a string (v4/5 has the ArrayableLink)
-                        if ($entry->blueprint()->handle() === 'link' && isset($entry->redirect) && (
-                            (get_class($entry->redirect) === ArrayableLink::class && URL::isExternal($entry->redirect->url()))
-                            ||
-                            (property_exists($entry->redirect, 'url') && URL::isExternal($entry->redirect->url))
-                            )) {
-                            return false;
-                        }
-
-                        // if future listings are private or unlisted, do not include
-                        if ($entry->collection()->futureDateBehavior() == 'private' || $entry->collection()->futureDateBehavior() == 'unlisted') {
-                            if ($entry->date() > now()) {
-                                return false;
-                            }
-                        }
-
-                        // if past listings are private or unlisted, do not include
-                        if ($entry->collection()->pastDateBehavior() == 'private' || $entry->collection()->pastDateBehavior() == 'unlisted') {
-                            if ($entry->date() < now()) {
-                                return false;
-                            }
-                        }
-
-                        // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
-                        $includeKey = config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap');
-                        $includeInSitemap = $entry->get($includeKey) ?? $entry->getComputed($includeKey);
-                        if ($includeInSitemap === null || $includeInSitemap == 'default') {
-                            // get the default config, or return true by default
-                            return config('sitemapamic.defaults.'.$entry->collection()->handle().'.include', true);
-                        } elseif ($includeInSitemap == "false" || $includeInSitemap === false) {
-                            // explicitly set to "false" or boolean false, so exclude
-                            return false;
-                        }
-
-                        // yep, keep it
-                        return true;
-                    })->map(function ($entry) use ($collectionSites) {
-
-                        $changeFreqKey = config('sitemapamic.mappings.change_frequency', 'meta_change_frequency');
-                        $changeFreq = $entry->get($changeFreqKey) ?? $entry->getComputed($changeFreqKey);
-                        if ($changeFreq == 'default') {
-                            // clear back to use default
-                            $changeFreq = null;
-                        }
-
-                        $priorityKey = config('sitemapamic.mappings.priority', 'meta_priority');
-
-                        $alts = $collectionSites
-                            ->map(fn($siteHandle) => $entry->in($siteHandle))
-                            ->filter(fn($localized) => $localized && $localized->published())
-                            ->map(fn($localized) => [
-                                'hreflang' => str_replace('_', '-', $localized->site()->locale()),
-                                'href' => $localized->absoluteUrl(),
-                            ])
-                            ->values()
-                            ->toArray();
-                        $alternates = count($alts) > 1 ? $alts : [];
-
-                        // return the entry as a Sitemapamic URL
-                        return new SitemapamicUrl(
-                            URL::makeAbsolute($entry->url()),
-                            Carbon::parse($entry->get('updated_at'))->toW3cString(),
-                            $changeFreq ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.frequency',
-                            false),
-                            $entry->get($priorityKey) ?? $entry->getComputed($priorityKey) ?? config('sitemapamic.defaults.'.$entry->collection()->handle().'.priority',
-                            false),
-                            $alternates
-                        );
-                    })->toArray();
-                }
-            ];
-        });
-    }
-
-    /**
-     * Gets the Taxonomy pages for the collections where they are used.
-     *
-     * lastmod will be set to the Term's updated_at time, or the latest entry's
-     * updated_at time, whichever is more recent.
-     *
-     * Returns a collection of \MityDigital\Sitemapamic\Models\SitemapamicUrl
-     *
-     * @return \Illuminate\Support\Collection
-     */
-    protected function loadCollectionTerms(): \Illuminate\Support\Collection
-    {
-        // get the current site key based on the url
-        $site = Site::default();
-        foreach (Site::all() as $key => $props) {
-            if ($props->url() == url('/')) {
-                $site = $props;
-                break;
-            }
+        if ($site === null) {
+            return Sites::all()->map->handle()->values()->all();
         }
 
-        return collect(config('sitemapamic.defaults'))->map(function ($properties, $handle) use ($site) {
-
-            // if there is a property called includeTaxonomies, and its false (or the collection is disabled) then exclude it
-            // this has been added for backwards compatibility
-            if (isset($properties['includeTaxonomies']) && (!$properties['includeTaxonomies'] || !$properties['include'])) {
-                return false;
-            }
-
-            $collection = Collection::findByHandle($handle);
-
-            return $collection->taxonomies()->map->collection($collection)->mapWithKeys(function ($taxonomy) use (
-                $properties,
-                $handle,
-                $site
-            ) {
-                return [
-                    $handle.'_'.$taxonomy->handle => function () use ($taxonomy, $site) {
-
-                        return $taxonomy->queryTerms()->get()->filter(function ($term) use ($site) {
-                            if (!$term->published()) {
-                                return false;
-                            }
-
-                            // site is not configured, so exclude
-                            if (!$term->collection()->sites()->contains($site->handle())) {
-                                return false;
-                            }
-
-                            // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
-                            $includeInSitemap = $term->get(config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap'));
-                            if ($includeInSitemap === null) {
-                                // get the default config, or return true by default
-                                return config('sitemapamic.defaults.'.$term->collection()->handle().'.include', true);
-                            } elseif ($includeInSitemap === false) {
-                                // explicitly set to false, so exclude
-                                return false;
-                            }
-
-                            return true; // this far, accept it
-                        })->map(function ($term) use ($site) {
-                            // get the term mod date
-                            $lastMod = $term->get('updated_at');
-
-                            // get entries
-                            $termEntries = $term->queryEntries()->orderBy('updated_at', 'desc');
-
-                            // if this term has entries, get the greater of the two updated_at timestamps
-                            if ($termEntries->count() > 0) {
-                                // get the last modified entry
-                                $entryLastMod = $termEntries->first()->get('updated_at');
-
-                                // Check if the $lastMod is being returned as a Carbon instance instead of an int
-                                if ($lastMod && !is_int($lastMod)) {
-                                    // Convert to a timestamp if it's a Carbon instance
-                                    $lastMod = $lastMod->timestamp;
-                                }
-
-                                // entry date is after the term's mod date
-                                if ($entryLastMod > $lastMod) {
-                                    $lastMod = $entryLastMod;
-                                }
-                            }
-
-                            $changeFreq = $term->get(config('sitemapamic.mappings.change_frequency', 'meta_change_frequency'));
-                            if ($changeFreq == 'default') {
-                                // clear back to use default
-                                $changeFreq = null;
-                            }
-
-
-                            // get the site URL, or the app URL if its "/"
-                            //$siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
-                            $siteUrl = $site->url();
-                            if ($siteUrl == '/') {
-                                $siteUrl = config('app.url');
-                            }
-
-                            return new SitemapamicUrl(
-                                $siteUrl.$term->url(),
-                                Carbon::parse($lastMod)->toW3cString(),
-                                $changeFreq ?? config('sitemapamic.defaults.'.$term->collection()->handle().'.frequency',
-                                false),
-                                $term->get(config('sitemapamic.mappings.priority', 'meta_priority')) ?? config('sitemapamic.defaults.'.$term->collection()->handle().'.priority',
-                                false)
-                            );
-                        });
-                    }
-                ];
-            });
-        })->flatMap(fn($items) => $items);
+        return [$this->resolveSite($site)->handle()];
     }
 
-    protected function loadGlobalTaxonomies(): \Illuminate\Support\Collection
+    private function resolveSite(Site|string|null $site): Site
     {
-        // are we configured to load the global taxonomies?
-        // if so, what?
-        $taxonomies = config('sitemapamic.globals.taxonomies', []);
-
-        if (empty($taxonomies)) {
-            // return an empty collection - either set to false, or not set yet
-            return collect();
+        if ($site instanceof Site) {
+            return $site;
         }
 
-        // get the current site key based on the url
-        $site = Site::default();
-        foreach (Site::all() as $key => $props) {
-            if ($props->url() == url('/')) {
-                $site = $props;
-                break;
-            }
+        if ($site === null) {
+            return Sites::current();
         }
 
-        return collect($taxonomies)->mapWithKeys(function ($properties, $handle) use ($site) {
-            return [
-                $handle => function () use ($handle, $site) {
+        $resolved = Sites::get($site);
+        if ($resolved === null) {
+            throw new InvalidArgumentException('Unknown sitemap site: '.$site);
+        }
 
-                    // get the taxonomy repository
-                    $taxonomy = Taxonomy::find($handle);
-
-                    // if the taxonomy isn't configured for the site, get out
-                    if (!$taxonomy->sites()->contains($site)) {
-                        return null;
-                    }
-
-                    // does a view exist for this taxonomy?
-                    // if not, it will 404, so let's not do any more
-                    if (!view()->exists($handle.'/show')) {
-                        return null;
-                    }
-
-                    // get the terms
-                    return Term::whereTaxonomy($handle)
-                        ->filter(function ($term) {
-                            // should we include this term?
-                            // include_xml_sitemap is one of null (when not set, so default to true), then either false or true
-                            $includeInSitemap = $term->get(config('sitemapamic.mappings.include', 'meta_include_in_xml_sitemap'));
-                            if ($includeInSitemap === "false" || $includeInSitemap === false) {
-                                // explicitly set to "false" or boolean false, so exclude
-                                return false;
-                            }
-
-                            // there is no meta field for the term, so include it
-                            // Why? Because if we made it this far, the Taxonomy is part of the global config, so
-                            // we want to include it. So just include it.
-                            return true;
-                        })
-                        ->map(function (\Statamic\Taxonomies\LocalizedTerm $term) use ($site) {
-                            // get the term mod date
-                            $lastMod = $term->get('updated_at');
-
-                            // get entries
-                            $termEntries = $term->queryEntries()->orderBy('updated_at', 'desc');
-
-                            // if this term has entries, get the greater of the two updated_at timestamps
-                            if ($termEntries->count() > 0) {
-                                // get the last modified entry
-                                $entryLastMod = $termEntries->first()->get('updated_at');
-
-                                // entry date is after the term's mod date
-                                if ($entryLastMod > $lastMod) {
-                                    $lastMod = $entryLastMod;
-                                }
-                            }
-
-                            $changeFreq = $term->get(config('sitemapamic.mappings.change_frequency', 'meta_change_frequency'));
-                            if ($changeFreq == 'default') {
-                                // clear back to use default
-                                $changeFreq = null;
-                            }
-
-                            // get the site URL, or the app URL if its "/"
-                            //$siteUrl = config('statamic.sites.sites.'.$term->locale().'.url');
-                            $siteUrl = $site->url();
-                            if ($siteUrl == '/') {
-                                $siteUrl = config('app.url');
-                            }
-
-                            return new SitemapamicUrl(
-                                $siteUrl.$term->url(),
-                                Carbon::parse($lastMod)->toW3cString(),
-                                $changeFreq ??
-                                config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.frequency',
-                                    false),
-                                $term->get(config('sitemapamic.mappings.priority', 'meta_priority')) ?? config('sitemapamic.globals.taxonomies.'.$term->taxonomy()->handle().'.priority',
-                                false)
-                            );
-                        });
-                }
-            ];
-        });
-    }
-
-    public function hasDynamicRoutes(): bool
-    {
-        return (bool) count($this->dynamicRoutes);
-    }
-
-    protected function loadDynamicRoutes(): \Illuminate\Support\Collection
-    {
-        // get the dynamic routes, if any are set, and only return them if they are a SitemapamicUrl
-        return collect([
-            'dynamic' => function () {
-                return collect($this->getDynamicRoutes())
-                    ->flatMap(function ($closure) {
-                        return $closure();
-                    })
-                    ->filter(fn($route) => get_class($route) == SitemapamicUrl::class);
-            }
-        ]);
-    }
-
-    /**
-     * Returns the dynamic routes
-     *
-     * @return array|mixed
-     */
-    public function getDynamicRoutes()
-    {
-        return $this->dynamicRoutes;
+        return $resolved;
     }
 }

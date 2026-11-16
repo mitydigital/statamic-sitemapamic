@@ -96,13 +96,16 @@ return [
     |
     | All of these can be adjusted by env variables.
     |
+    | If your ttl is null, it will be cached forever. You can also provide a number of seconds to keep the
+    | cached maps for.
+    |
     */
     'cache' => [
         'enabled' => env('SITEMAPAMIC_CACHE_ENABLED', true),
 
         'key' => 'sitemapamic',
 
-        'ttl' => env('SITEMAPAMIC_CACHE_TTL'),
+        'ttl' => env('SITEMAPAMIC_CACHE_TTL', null),
 
         'disk' => env('SITEMAPAMIC_CACHE_DISK', 'local'),
     ],

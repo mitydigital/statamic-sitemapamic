@@ -25,7 +25,8 @@
         "pestphp/pest": "^4.7",
         "laravel/pint": "^1.24",
         "spatie/laravel-ray": "^1.33",
-        "statamic/eloquent-driver": "^5.13"
+        "statamic/eloquent-driver": "^5.13",
+        "statamic/ssg": "^4.2"
     },
     "config": {
         "allow-plugins": {

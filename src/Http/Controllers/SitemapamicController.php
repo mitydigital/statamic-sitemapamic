@@ -5,7 +5,9 @@ namespace MityDigital\Sitemapamic\Http\Controllers;
 use Illuminate\Http\Request;
 use MityDigital\Sitemapamic\Exceptions\SitemapBusyException;
 use MityDigital\Sitemapamic\Support\Sitemapamic;
+use MityDigital\Sitemapamic\Support\SiteUrls;
 use Statamic\Facades\Site;
+use Statamic\StaticSite\Request as StaticSiteRequest;
 use Symfony\Component\HttpFoundation\Response;
 
 class SitemapamicController
@@ -24,8 +26,9 @@ class SitemapamicController
 
     private function respond(Request $request, string $filename): Response
     {
-        $site = Site::get($request->route('sitemapamic_site'));
-        abort_if($site === null, 404);
+        // the site that owns this URL must also own the route's prefix, so /de/sitemap.xml never serves another site
+        $site = Site::findByUrl($request->url());
+        abort_if($site === null || SiteUrls::pathPrefix($site) !== $request->route('sitemapamic_prefix'), 404);
 
         // another request is building and there is nothing to serve yet
         try {
@@ -40,6 +43,15 @@ class SitemapamicController
             'Content-Type' => 'application/xml; charset=UTF-8',
             'Content-Length' => (string) $document->bytes,
         ];
+
+        // the static site generator writes getContent() to disk, which a streamed response doesn't have
+        if ($request instanceof StaticSiteRequest) {
+            try {
+                return response(stream_get_contents($document->stream), 200, $headers);
+            } finally {
+                fclose($document->stream);
+            }
+        }
 
         if ($request->isMethod('HEAD')) {
             fclose($document->stream);

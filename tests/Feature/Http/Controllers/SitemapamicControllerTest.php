@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Storage;
@@ -155,4 +157,54 @@ it('serves each site its own sitemap from the shared host', function (): void {
 
     expect(controllerSitemapLocations($nested))->toBe(['http://example.test/nested/first', 'http://example.test/nested/second'])
         ->and(controllerSitemapLocations($region))->toBe(['http://example.test/nested/region/first', 'http://example.test/nested/region/second']);
+});
+
+it('serves each site its own sitemap at its own URL', function (string $base): void {
+    $xml = $this->get($base.'/sitemap.xml')->assertOk()->streamedContent();
+
+    expect(controllerSitemapLocations($xml))->toBe([$base.'/sitemap-dynamic-1.xml']);
+    $this->get($base.'/sitemap-dynamic-1.xml')->assertOk();
+})->with([
+    'default' => ['http://example.test'],
+    'nested' => ['http://example.test/nested'],
+    'nested deeper' => ['http://example.test/nested/region'],
+    'other domain' => ['https://island.example.test/branch'],
+    'other port' => ['http://preview.example.test:8088/deep'],
+]);
+
+it('serves a relative site on a host other than app.url, with canonical locations', function (string $path, string $canonical): void {
+    $xml = $this->get('http://www.example.test'.$path.'/sitemap.xml')->assertOk()->streamedContent();
+
+    expect(controllerSitemapLocations($xml))->toBe([$canonical.'/sitemap-dynamic-1.xml']);
+})->with([
+    'root' => ['', 'http://example.test'],
+    'prefixed' => ['/nested/region', 'http://example.test/nested/region'],
+]);
+
+it('does not serve a prefix that belongs to a site on another host', function (string $url): void {
+    $this->get($url)->assertNotFound();
+})->with([
+    'another domain prefix' => ['http://example.test/branch/sitemap.xml'],
+    'another port prefix' => ['http://example.test/deep/sitemap-dynamic-1.xml'],
+    'prefix not on this host' => ['https://island.example.test/deep/sitemap.xml'],
+]);
+
+it('serves a request whose host comes only from an overridden getHttpHost, as the static site generator makes', function (): void {
+    $request = (new class extends Request
+    {
+        public function getHttpHost(): string
+        {
+            return 'example.test';
+        }
+    })::create('/nested/region/sitemap.xml');
+
+    expect($request->getHost())->toBe('localhost');
+
+    $response = app(Kernel::class)->handle($request);
+    ob_start();
+    $response->sendContent();
+    $xml = ob_get_clean();
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and(controllerSitemapLocations($xml))->toBe(['http://example.test/nested/region/sitemap-dynamic-1.xml']);
 });

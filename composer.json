@@ -1,6 +1,6 @@
 {
     "name": "mitydigital/sitemapamic",
-    "description": "An XML sitemap generator for Statamic that includes all collections and related taxonomy pages.",
+    "description": "A powerful and performant XML sitemap generator for Statamic.",
     "license": "MIT",
     "authors": [
         {
@@ -37,7 +37,7 @@
     "extra": {
         "statamic": {
             "name": "Sitemapamic",
-            "description": "Sitemapamic addon"
+            "description": "A powerful and performant XML sitemap generator for Statamic."
         },
         "laravel": {
             "providers": [

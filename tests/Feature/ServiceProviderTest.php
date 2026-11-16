@@ -16,18 +16,22 @@ use Statamic\Facades\Site;
 
 uses(UsesSitemapSites::class);
 
-it('registers two path-only serialisable routes per distinct site prefix', function (): void {
+it('registers two named path-only serialisable routes per distinct site prefix', function (): void {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->filter(fn ($route): bool => str_starts_with($route->getActionName(), SitemapamicController::class.'@'));
 
-    expect($routes)->toHaveCount(10)
-        ->and($routes->map->uri()->sort()->values()->all())->toBe([
-            'branch/sitemap-{sitemap}.xml', 'branch/sitemap.xml',
-            'deep/sitemap-{sitemap}.xml', 'deep/sitemap.xml',
-            'nested/region/sitemap-{sitemap}.xml', 'nested/region/sitemap.xml',
-            'nested/sitemap-{sitemap}.xml', 'nested/sitemap.xml',
-            'sitemap-{sitemap}.xml', 'sitemap.xml',
-        ]);
+    expect($routes->mapWithKeys(fn ($route): array => [$route->getName() => $route->uri()])->sortKeys()->all())->toBe([
+        'sitemapamic.branch.index' => 'branch/sitemap.xml',
+        'sitemapamic.branch.show' => 'branch/sitemap-{sitemap}.xml',
+        'sitemapamic.deep.index' => 'deep/sitemap.xml',
+        'sitemapamic.deep.show' => 'deep/sitemap-{sitemap}.xml',
+        'sitemapamic.index' => 'sitemap.xml',
+        'sitemapamic.nested.index' => 'nested/sitemap.xml',
+        'sitemapamic.nested.region.index' => 'nested/region/sitemap.xml',
+        'sitemapamic.nested.region.show' => 'nested/region/sitemap-{sitemap}.xml',
+        'sitemapamic.nested.show' => 'nested/sitemap-{sitemap}.xml',
+        'sitemapamic.show' => 'sitemap-{sitemap}.xml',
+    ]);
     foreach ($routes as $route) {
         expect($route->getDomain())->toBeNull()
             ->and($route->methods())->toBe(['GET', 'HEAD']);

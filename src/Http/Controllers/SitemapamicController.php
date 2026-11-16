@@ -28,7 +28,7 @@ class SitemapamicController
     {
         // the site that owns this URL must also own the route's prefix, so /de/sitemap.xml never serves another site
         $site = Site::findByUrl($request->url());
-        abort_if($site === null || SiteUrls::pathPrefix($site) !== $request->route('sitemapamic_prefix'), 404);
+        abort_if($site === null || SiteUrls::pathPrefix($site) !== trim($request->route()->getPrefix() ?? '', '/'), 404);
 
         // another request is building and there is nothing to serve yet
         try {

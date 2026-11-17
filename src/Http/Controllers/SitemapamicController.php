@@ -32,16 +32,27 @@ class SitemapamicController
 
         // another request is building and there is nothing to serve yet
         try {
-            $document = $this->sitemapamic->document($site, $filename);
+            $document = $this->sitemapamic->document($site, $filename, $request->getETags());
         } catch (SitemapBusyException) {
             return response('', 503, ['Retry-After' => '10']);
         }
 
         abort_if($document === null, 404);
 
+        // shared caches may keep a copy but must check it each time, so a rebuild or clear is seen straight away
+        $validators = [
+            'Cache-Control' => 'public, no-cache',
+            'ETag' => $document->etag,
+        ];
+
+        if ($document->isUnchanged()) {
+            return response('', 304, $validators);
+        }
+
         $headers = [
             'Content-Type' => 'application/xml; charset=UTF-8',
             'Content-Length' => (string) $document->bytes,
+            ...$validators,
         ];
 
         // the static site generator writes getContent() to disk, which a streamed response doesn't have

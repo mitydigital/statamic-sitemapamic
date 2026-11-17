@@ -15,7 +15,7 @@ use Statamic\Sites\Site;
  * @method static Manifest manifest(Site|string|null $site = null)
  * @method static void clearCache(Site|string|null $site = null)
  * @method static void markStale(Site|string|null $site = null)
- * @method static SitemapDocument|null document(Site $site, string $filename)
+ * @method static SitemapDocument|null document(Site $site, string $filename, array $etags = [])
  *
  * @see Support
  */

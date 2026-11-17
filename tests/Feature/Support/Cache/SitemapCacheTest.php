@@ -23,7 +23,7 @@ function publishedSitemapCacheManifest(SitemapCache $cache, string $site = 'defa
     $cache->store($directory, 'sitemap-collection-pages-1.xml', sitemapCacheStream('<urlset/>'));
     $cache->store($directory, 'sitemap.xml', sitemapCacheStream('<sitemapindex/>'));
 
-    $child = new SitemapFile('sitemap-collection-pages-1.xml', 'collection-pages', 1, 9);
+    $child = new SitemapFile('sitemap-collection-pages-1.xml', 'collection-pages', 1, 9, hash('xxh128', '<urlset/>'));
 
     $manifest = new Manifest(
         site: $site,
@@ -33,7 +33,7 @@ function publishedSitemapCacheManifest(SitemapCache $cache, string $site = 'defa
         expiresAt: $expiresAt,
         configHash: $cache->configHash(),
         files: [$child->filename => $child],
-        index: new SitemapFile('sitemap.xml', 'index', 1, 15),
+        index: new SitemapFile('sitemap.xml', 'index', 1, 15, hash('xxh128', '<sitemapindex/>')),
     );
     $cache->publish($manifest);
 
@@ -180,6 +180,17 @@ it('opens a file listed in the manifest with its byte length', function (): void
 
     fclose($index->stream);
     fclose($child->stream);
+});
+
+it('does not read the disk for a file the client already holds', function (): void {
+    $manifest = publishedSitemapCacheManifest($this->cache);
+    Storage::disk('sitemap-cache')->delete($manifest->directory.'/sitemap.xml');
+
+    $document = $this->cache->open($manifest, 'sitemap.xml', [$manifest->index->etag()]);
+
+    expect($document->isUnchanged())->toBeTrue()
+        ->and($document->etag)->toBe('"'.hash('xxh128', '<sitemapindex/>').'"')
+        ->and($this->cache->manifest('default'))->toEqual($manifest);
 });
 
 it('returns null for a filename not in the manifest', function (): void {

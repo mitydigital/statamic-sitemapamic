@@ -91,7 +91,7 @@ class Builder
                 $stream = $held[1];
                 $held = null;
                 $store('sitemap.xml', $stream);
-                $file = new SitemapFile('sitemap.xml', self::SINGLE_SOURCE, $files[0]->count, $files[0]->bytes);
+                $file = new SitemapFile('sitemap.xml', self::SINGLE_SOURCE, $files[0]->count, $files[0]->bytes, $files[0]->hash);
 
                 return ['files' => [$file], 'index' => $file];
             }
@@ -156,19 +156,18 @@ class Builder
     /** @param list<SitemapFile> $files */
     private function writeIndex(Site $site, array $files, Closure $store): SitemapFile
     {
-        $stream = fopen('php://temp/maxmemory:5242880', 'w+b');
-        fwrite($stream, $this->renderer->indexStart());
-
+        $contents = $this->renderer->indexStart();
         foreach ($files as $file) {
-            fwrite($stream, $this->renderer->sitemap(SiteUrls::sitemapUrl($site, $file->filename)));
+            $contents .= $this->renderer->sitemap(SiteUrls::sitemapUrl($site, $file->filename));
         }
+        $contents .= $this->renderer->indexEnd();
 
-        fwrite($stream, $this->renderer->indexEnd());
-        $bytes = ftell($stream);
+        $stream = fopen('php://temp/maxmemory:5242880', 'w+b');
+        fwrite($stream, $contents);
         rewind($stream);
         $store('sitemap.xml', $stream);
 
-        return new SitemapFile('sitemap.xml', 'index', count($files), $bytes);
+        return new SitemapFile('sitemap.xml', 'index', count($files), strlen($contents), hash(SitemapFile::HASH_ALGORITHM, $contents));
     }
 
     private function describe(Source $source): string

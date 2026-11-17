@@ -63,21 +63,26 @@ class Sitemapamic
         }
     }
 
-    public function document(Site $site, string $filename): ?SitemapDocument
+    /**
+     * The document to serve for a file, or an unchanged one with no stream when the client already holds it.
+     *
+     * @param  list<string>  $etags  the ETags the client sent in If-None-Match
+     */
+    public function document(Site $site, string $filename, array $etags = []): ?SitemapDocument
     {
         if (! $this->cache->enabled()) {
-            return $this->uncachedDocument($site, $filename);
+            return $this->uncachedDocument($site, $filename, $etags);
         }
 
         try {
-            return $this->cache->open($this->currentManifest($site), $filename);
+            return $this->cache->open($this->currentManifest($site), $filename, $etags);
         } catch (SitemapBusyException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
             // the cache failed, so build this one response without it
             report($exception);
 
-            return $this->uncachedDocument($site, $filename);
+            return $this->uncachedDocument($site, $filename, $etags);
         }
     }
 
@@ -183,7 +188,8 @@ class Sitemapamic
         }
     }
 
-    private function uncachedDocument(Site $site, string $filename): ?SitemapDocument
+    /** @param list<string> $etags */
+    private function uncachedDocument(Site $site, string $filename, array $etags): ?SitemapDocument
     {
         $kept = new stdClass;
         $kept->stream = null;
@@ -204,7 +210,14 @@ class Sitemapamic
             return null;
         }
 
-        return new SitemapDocument($kept->stream, $file->bytes);
+        // the build can't be skipped, but sending it again can
+        if ($file->matchesAnyEtag($etags)) {
+            fclose($kept->stream);
+
+            return SitemapDocument::unchanged($file);
+        }
+
+        return new SitemapDocument($kept->stream, $file->bytes, $file->etag());
     }
 
     /** @param resource $stream */

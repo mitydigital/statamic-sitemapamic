@@ -130,7 +130,7 @@ class Sitemapamic
             $manifest = $this->buildAndStore($site, $version);
 
             if ($this->cache->version($site->handle()) === $version) {
-                $this->cache->publish($manifest);
+                $this->publish($manifest);
 
                 return $manifest;
             }
@@ -143,6 +143,18 @@ class Sitemapamic
         }
 
         throw new SitemapBusyException('The content for site '.$site->handle().' kept changing during the build.');
+    }
+
+    private function publish(Manifest $manifest): void
+    {
+        try {
+            $this->cache->publish($manifest);
+        } catch (Throwable $exception) {
+            // nothing points at the new files, so they would only be removed by a later publish
+            $this->cache->deleteDirectory($manifest->directory);
+
+            throw $exception;
+        }
     }
 
     private function buildAndStore(Site $site, string $version): Manifest

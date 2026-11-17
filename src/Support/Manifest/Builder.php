@@ -63,7 +63,8 @@ class Builder
         // hold the first file back until it is known whether it is the only one
         $held = null;
         $holdFirst = function (string $filename, $stream) use (&$held, $store): void {
-            if ($held !== null) {
+            // false marks that the first file has been handed on, so later files pass straight through
+            if (is_array($held)) {
                 [$heldFilename, $heldStream] = $held;
                 $held = false;
                 $store($heldFilename, $heldStream);

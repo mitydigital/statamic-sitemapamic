@@ -184,6 +184,21 @@ it('still returns the document when the disk cannot be written', function (): vo
     Exceptions::assertReportedCount(1);
 });
 
+it('keeps the previous files and serves without the cache when the manifest cannot be published', function (): void {
+    Exceptions::fake();
+    $previous = $this->sitemapamic->manifest($this->site);
+    $this->pages = ['c'];
+    $this->sitemapamic->markStale($this->site);
+    refuseForeverCacheWrites();
+
+    $xml = readSitemapDocument($this->sitemapamic->document($this->site, 'sitemap-dynamic-1.xml'));
+
+    expect($xml)->toContain('http://localhost/c')
+        ->and(app(SitemapCache::class)->manifest('default'))->toEqual($previous)
+        ->and(Storage::disk('sitemap-cache')->directories('sitemapamic/default'))->toBe([$previous->directory]);
+    Exceptions::assertReported(fn (RuntimeException $exception): bool => $exception->getMessage() === 'Unable to publish the sitemap manifest for site default.');
+});
+
 it('serves a file missing from the disk without the cache and rebuilds on the next request', function (): void {
     Exceptions::fake();
     $manifest = $this->sitemapamic->manifest($this->site);

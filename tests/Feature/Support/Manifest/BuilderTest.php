@@ -173,6 +173,28 @@ it('splits the merged file into numbered files with an index in single mode', fu
         ->and(sitemapLocations($stored->contents['sitemap-all-2.xml']))->toBe(['http://localhost/articles/c']);
 });
 
+it('stores every numbered file and lists them in the index when single mode needs more than two files', function (): void {
+    config(['sitemapamic.mode' => 'single']);
+    foreach (['a', 'b', 'c', 'd'] as $id) {
+        ($this->makeEntry)($id);
+    }
+    $stored = new GeneratedSitemapFiles;
+
+    $result = generateSitemaps('default', $stored, new Writer(maxUrls: 1));
+
+    $filenames = ['sitemap-all-1.xml', 'sitemap-all-2.xml', 'sitemap-all-3.xml', 'sitemap-all-4.xml'];
+    expect(array_map(fn (SitemapFile $file): string => $file->filename, $result['files']))->toBe($filenames)
+        ->and($result['index'])->toEqual(new SitemapFile('sitemap.xml', 'index', 4, strlen($stored->contents['sitemap.xml'])))
+        ->and(array_keys($stored->contents))->toBe([...$filenames, 'sitemap.xml'])
+        ->and(sitemapLocations($stored->contents['sitemap.xml']))->toBe(array_map(fn (string $filename): string => 'http://localhost/'.$filename, $filenames))
+        ->and(array_merge(...array_map(fn (string $filename): array => sitemapLocations($stored->contents[$filename]), $filenames)))->toBe([
+            'http://localhost/articles/a',
+            'http://localhost/articles/b',
+            'http://localhost/articles/c',
+            'http://localhost/articles/d',
+        ]);
+});
+
 it('stores no files and no index in single mode when nothing is eligible', function (): void {
     config(['sitemapamic.mode' => 'single']);
     ($this->makeEntry)('hidden', ['meta_include_in_xml_sitemap' => false]);

@@ -93,7 +93,10 @@ class SitemapCache
 
     public function publish(Manifest $manifest): void
     {
-        Cache::forever($this->key($manifest->site, 'manifest'), $manifest->toArray());
+        // the previous manifest still points at its own files, so keep them unless this one is saved
+        if (! Cache::forever($this->key($manifest->site, 'manifest'), $manifest->toArray())) {
+            throw new RuntimeException('Unable to publish the sitemap manifest for site '.$manifest->site.'.');
+        }
 
         // the published directory is now the only one needed
         foreach ($this->disk()->directories($this->siteDirectory($manifest->site)) as $directory) {
@@ -121,9 +124,12 @@ class SitemapCache
         return new SitemapDocument($stream, $file->bytes);
     }
 
+    /** A version that can't be replaced would keep the old sitemap fresh, so this throws rather than fail quietly. */
     public function markStale(string $site): void
     {
-        Cache::forever($this->key($site, 'version'), Str::random(32));
+        if (! Cache::forever($this->key($site, 'version'), Str::random(32))) {
+            throw new RuntimeException('Unable to mark the sitemap for site '.$site.' stale.');
+        }
     }
 
     public function clear(string $site): void

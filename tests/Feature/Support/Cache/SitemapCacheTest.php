@@ -150,6 +150,23 @@ it('publish removes older directories for the site', function (): void {
         ->and($this->cache->manifest('default'))->toEqual($newer);
 });
 
+it('keeps the previous manifest and its files when a new manifest cannot be saved', function (): void {
+    $previous = publishedSitemapCacheManifest($this->cache);
+    refuseForeverCacheWrites();
+
+    expect(fn () => publishedSitemapCacheManifest($this->cache))
+        ->toThrow(RuntimeException::class, 'Unable to publish the sitemap manifest for site default.')
+        ->and($this->cache->manifest('default'))->toEqual($previous)
+        ->and(Storage::disk('sitemap-cache')->exists($previous->directory.'/sitemap.xml'))->toBeTrue();
+});
+
+it('throws when the site cannot be marked stale', function (): void {
+    refuseForeverCacheWrites();
+
+    expect(fn () => $this->cache->markStale('default'))
+        ->toThrow(RuntimeException::class, 'Unable to mark the sitemap for site default stale.');
+});
+
 it('opens a file listed in the manifest with its byte length', function (): void {
     $manifest = publishedSitemapCacheManifest($this->cache);
 

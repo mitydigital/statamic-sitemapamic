@@ -9,7 +9,7 @@ it('lists the protocol values in order', function (): void {
 it('reads a stored value', function (mixed $value, ?ChangeFrequency $expected): void {
     expect(ChangeFrequency::fromValue($value))->toBe($expected);
 })->with([
-    'a protocol value' => ['weekly', ChangeFrequency::Weekly],
+    'a protocol value' => ['weekly', ChangeFrequency::WEEKLY],
     'the wrong case' => ['Weekly', null],
     'an unknown word' => ['sometimes', null],
     'null' => [null, null],

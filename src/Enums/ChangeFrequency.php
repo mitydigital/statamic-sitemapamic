@@ -5,13 +5,13 @@ namespace MityDigital\Sitemapamic\Enums;
 /** The changefreq values the sitemap protocol allows. */
 enum ChangeFrequency: string
 {
-    case Always = 'always';
-    case Hourly = 'hourly';
-    case Daily = 'daily';
-    case Weekly = 'weekly';
-    case Monthly = 'monthly';
-    case Yearly = 'yearly';
-    case Never = 'never';
+    case ALWAYS = 'always';
+    case HOURLY = 'hourly';
+    case DAILY = 'daily';
+    case WEEKLY = 'weekly';
+    case MONTHLY = 'monthly';
+    case YEARLY = 'yearly';
+    case NEVER = 'never';
 
     /** The case for a stored value, or null for anything the protocol doesn't allow. */
     public static function fromValue(mixed $value): ?self

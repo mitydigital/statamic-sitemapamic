@@ -14,7 +14,7 @@ it('autoloads the URL value without booting the application', function (): void 
 it('stores a change frequency given as a case or a string', function (ChangeFrequency|string|null $changefreq, ?string $expected): void {
     expect((new SitemapamicUrl('https://example.com/page', changefreq: $changefreq))->changefreq)->toBe($expected);
 })->with([
-    'a case' => [ChangeFrequency::Weekly, 'weekly'],
+    'a case' => [ChangeFrequency::WEEKLY, 'weekly'],
     'a string' => ['daily', 'daily'],
     'none' => [null, null],
 ]);

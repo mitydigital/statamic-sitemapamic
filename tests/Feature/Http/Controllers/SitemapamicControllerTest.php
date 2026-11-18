@@ -123,6 +123,62 @@ it('still returns 200 when the cache store throws', function (): void {
     Exceptions::assertReportedCount(1);
 });
 
+it('sends an ETag of the content hash with a Cache-Control that makes caches revalidate', function (string $filename): void {
+    $response = $this->get('http://example.test/'.$filename);
+    $xml = $response->streamedContent();
+
+    $response->assertOk()->assertHeader('ETag', '"'.hash('xxh128', $xml).'"');
+    expect($response->headers->hasCacheControlDirective('public'))->toBeTrue()
+        ->and($response->headers->hasCacheControlDirective('no-cache'))->toBeTrue()
+        ->and($response->headers->hasCacheControlDirective('private'))->toBeFalse();
+})->with(['index' => ['sitemap.xml'], 'child' => ['sitemap-dynamic-1.xml']]);
+
+it('answers 304 with no body when the client already holds the file', function (string $method, string $ifNoneMatch): void {
+    $etag = $this->get('http://example.test/sitemap-dynamic-1.xml')->headers->get('ETag');
+
+    $response = $this->call($method, 'http://example.test/sitemap-dynamic-1.xml', server: ['HTTP_IF_NONE_MATCH' => sprintf($ifNoneMatch, $etag)]);
+
+    $response->assertStatus(304)->assertHeader('ETag', $etag)->assertHeaderMissing('Content-Length');
+    expect($response->getContent())->toBe('');
+})->with([
+    'GET' => ['GET', '%s'],
+    'HEAD' => ['HEAD', '%s'],
+    'weak' => ['GET', 'W/%s'],
+    'in a list' => ['GET', '"other", %s'],
+    'any' => ['GET', '*'],
+]);
+
+it('serves the file when the client holds a different version', function (): void {
+    $this->get('http://example.test/sitemap-dynamic-1.xml', ['If-None-Match' => '"something-else"'])
+        ->assertOk()
+        ->assertHeader('ETag', '"'.hash('xxh128', $this->get('http://example.test/sitemap-dynamic-1.xml')->streamedContent()).'"');
+});
+
+it('keeps the ETag of a file a rebuild leaves unchanged and changes it when the content changes', function (): void {
+    $etag = $this->get('http://example.test/sitemap-dynamic-1.xml')->headers->get('ETag');
+    app(Sitemapamic::class)->markStale('default');
+
+    $this->get('http://example.test/sitemap-dynamic-1.xml', ['If-None-Match' => $etag])->assertStatus(304);
+
+    app(Sitemapamic::class)->markStale('default');
+    app(DynamicRoutes::class)->add(fn (): array => [new SitemapamicUrl('http://example.test/new')]);
+
+    $response = $this->get('http://example.test/sitemap-dynamic-1.xml', ['If-None-Match' => $etag]);
+
+    $response->assertOk();
+    expect($response->headers->get('ETag'))->not->toBe($etag)
+        ->and($response->streamedContent())->toContain('http://example.test/new');
+});
+
+it('answers 304 when caching is disabled and the build matches what the client holds', function (): void {
+    config(['sitemapamic.cache.enabled' => false]);
+    $etag = $this->get('http://example.test/sitemap.xml')->headers->get('ETag');
+
+    $this->get('http://example.test/sitemap.xml', ['If-None-Match' => $etag])
+        ->assertStatus(304)
+        ->assertHeader('ETag', $etag);
+});
+
 it('serves without the cache or disk when caching is disabled', function (): void {
     config(['sitemapamic.cache.enabled' => false]);
 

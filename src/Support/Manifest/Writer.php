@@ -3,6 +3,7 @@
 namespace MityDigital\Sitemapamic\Support\Manifest;
 
 use Closure;
+use HashContext;
 use LengthException;
 use MityDigital\Sitemapamic\Data\SitemapFile;
 
@@ -16,6 +17,8 @@ class Writer
     private int $count = 0;
 
     private int $bytes = 0;
+
+    private ?HashContext $hash = null;
 
     public function __construct(private int $maxUrls = 50_000, private int $maxBytes = 52_428_800) {}
 
@@ -49,9 +52,8 @@ class Writer
                     $this->open('sitemap-'.$source.'-'.$number.'.xml', $start);
                 }
 
-                fwrite($this->stream, $fragment);
+                $this->append($fragment);
                 $this->count++;
-                $this->bytes += strlen($fragment);
             }
 
             if ($this->stream !== null) {
@@ -80,17 +82,24 @@ class Writer
     private function open(string $filename, string $start): void
     {
         $this->stream = fopen('php://temp/maxmemory:5242880', 'w+b');
-        fwrite($this->stream, $start);
-
         $this->filename = $filename;
         $this->count = 0;
-        $this->bytes = strlen($start);
+        $this->bytes = 0;
+        $this->hash = hash_init(SitemapFile::HASH_ALGORITHM);
+        $this->append($start);
+    }
+
+    /** Write to the open file, keeping its byte length and content hash in step. */
+    private function append(string $contents): void
+    {
+        fwrite($this->stream, $contents);
+        hash_update($this->hash, $contents);
+        $this->bytes += strlen($contents);
     }
 
     private function finish(string $source, string $end, Closure $store): SitemapFile
     {
-        fwrite($this->stream, $end);
-        $this->bytes += strlen($end);
+        $this->append($end);
         rewind($this->stream);
 
         // the stream now belongs to $store
@@ -98,6 +107,6 @@ class Writer
         $this->stream = null;
         $store($this->filename, $stream);
 
-        return new SitemapFile($this->filename, $source, $this->count, $this->bytes);
+        return new SitemapFile($this->filename, $source, $this->count, $this->bytes, hash_final($this->hash));
     }
 }

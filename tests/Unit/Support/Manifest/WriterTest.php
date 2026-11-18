@@ -35,7 +35,7 @@ it('writes no file for no fragments', function (): void {
 it('writes one fragment into one numbered file', function (): void {
     $files = writeSitemapFiles(new Writer, ['abc'], $this->stored);
 
-    expect($files)->toEqual([new SitemapFile('sitemap-collection-pages-1.xml', 'collection-pages', 1, 5)])
+    expect($files)->toEqual([new SitemapFile('sitemap-collection-pages-1.xml', 'collection-pages', 1, 5, hash('xxh128', '[abc]'))])
         ->and($this->stored->contents)->toBe(['sitemap-collection-pages-1.xml' => '[abc]']);
 });
 

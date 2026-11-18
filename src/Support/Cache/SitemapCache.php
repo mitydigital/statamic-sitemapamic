@@ -106,11 +106,20 @@ class SitemapCache
         }
     }
 
-    public function open(Manifest $manifest, string $filename): ?SitemapDocument
+    /**
+     * Open a file from the manifest, or skip the disk when the client already holds it.
+     *
+     * @param  list<string>  $etags  the ETags the client sent in If-None-Match
+     */
+    public function open(Manifest $manifest, string $filename, array $etags = []): ?SitemapDocument
     {
         $file = $manifest->file($filename);
         if ($file === null) {
             return null;
+        }
+
+        if ($file->matchesAnyEtag($etags)) {
+            return SitemapDocument::unchanged($file);
         }
 
         // if the file has gone, forget this manifest so the next request rebuilds
@@ -121,7 +130,7 @@ class SitemapCache
             throw new RuntimeException('Cached sitemap file '.$filename.' is missing for site '.$manifest->site.'.');
         }
 
-        return new SitemapDocument($stream, $file->bytes);
+        return new SitemapDocument($stream, $file->bytes, $file->etag());
     }
 
     /** A version that can't be replaced would keep the old sitemap fresh, so this throws rather than fail quietly. */

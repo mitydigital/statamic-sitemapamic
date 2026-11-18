@@ -86,9 +86,9 @@ it('generates one child file and an index for a small source', function (): void
     $result = generateSitemaps('default', $stored);
 
     expect($result['files'])->toEqual([
-        new SitemapFile('sitemap-collection-articles-1.xml', 'collection-articles', 2, strlen($stored->contents['sitemap-collection-articles-1.xml'])),
+        new SitemapFile('sitemap-collection-articles-1.xml', 'collection-articles', 2, strlen($stored->contents['sitemap-collection-articles-1.xml']), hash('xxh128', $stored->contents['sitemap-collection-articles-1.xml'])),
     ])
-        ->and($result['index'])->toEqual(new SitemapFile('sitemap.xml', 'index', 1, strlen($stored->contents['sitemap.xml'])))
+        ->and($result['index'])->toEqual(new SitemapFile('sitemap.xml', 'index', 1, strlen($stored->contents['sitemap.xml']), hash('xxh128', $stored->contents['sitemap.xml'])))
         ->and(array_keys($stored->contents))->toBe(['sitemap-collection-articles-1.xml', 'sitemap.xml'])
         ->and(sitemapLocations($stored->contents['sitemap-collection-articles-1.xml']))->toBe([
             'http://localhost/articles/a',
@@ -143,7 +143,7 @@ it('merges every source into one sitemap.xml in single mode', function (): void 
 
     $result = generateSitemaps('default', $stored);
 
-    $file = new SitemapFile('sitemap.xml', 'all', count($expectedLocations), strlen($stored->contents['sitemap.xml']));
+    $file = new SitemapFile('sitemap.xml', 'all', count($expectedLocations), strlen($stored->contents['sitemap.xml']), hash('xxh128', $stored->contents['sitemap.xml']));
     expect(count($automaticResult['files']))->toBe(3)
         ->and($result)->toEqual(['files' => [$file], 'index' => $file])
         ->and(array_keys($stored->contents))->toBe(['sitemap.xml'])
@@ -161,10 +161,10 @@ it('splits the merged file into numbered files with an index in single mode', fu
     $result = generateSitemaps('default', $stored, new Writer(maxUrls: 2));
 
     expect($result['files'])->toEqual([
-        new SitemapFile('sitemap-all-1.xml', 'all', 2, strlen($stored->contents['sitemap-all-1.xml'])),
-        new SitemapFile('sitemap-all-2.xml', 'all', 1, strlen($stored->contents['sitemap-all-2.xml'])),
+        new SitemapFile('sitemap-all-1.xml', 'all', 2, strlen($stored->contents['sitemap-all-1.xml']), hash('xxh128', $stored->contents['sitemap-all-1.xml'])),
+        new SitemapFile('sitemap-all-2.xml', 'all', 1, strlen($stored->contents['sitemap-all-2.xml']), hash('xxh128', $stored->contents['sitemap-all-2.xml'])),
     ])
-        ->and($result['index'])->toEqual(new SitemapFile('sitemap.xml', 'index', 2, strlen($stored->contents['sitemap.xml'])))
+        ->and($result['index'])->toEqual(new SitemapFile('sitemap.xml', 'index', 2, strlen($stored->contents['sitemap.xml']), hash('xxh128', $stored->contents['sitemap.xml'])))
         ->and(array_keys($stored->contents))->toBe(['sitemap-all-1.xml', 'sitemap-all-2.xml', 'sitemap.xml'])
         ->and(sitemapLocations($stored->contents['sitemap.xml']))->toBe([
             'http://localhost/sitemap-all-1.xml',
@@ -184,7 +184,7 @@ it('stores every numbered file and lists them in the index when single mode need
 
     $filenames = ['sitemap-all-1.xml', 'sitemap-all-2.xml', 'sitemap-all-3.xml', 'sitemap-all-4.xml'];
     expect(array_map(fn (SitemapFile $file): string => $file->filename, $result['files']))->toBe($filenames)
-        ->and($result['index'])->toEqual(new SitemapFile('sitemap.xml', 'index', 4, strlen($stored->contents['sitemap.xml'])))
+        ->and($result['index'])->toEqual(new SitemapFile('sitemap.xml', 'index', 4, strlen($stored->contents['sitemap.xml']), hash('xxh128', $stored->contents['sitemap.xml'])))
         ->and(array_keys($stored->contents))->toBe([...$filenames, 'sitemap.xml'])
         ->and(sitemapLocations($stored->contents['sitemap.xml']))->toBe(array_map(fn (string $filename): string => 'http://localhost/'.$filename, $filenames))
         ->and(array_merge(...array_map(fn (string $filename): array => sitemapLocations($stored->contents[$filename]), $filenames)))->toBe([

@@ -23,9 +23,9 @@ function dataManifest(array $files = [], ?SitemapFile $index = null): Manifest
 }
 
 beforeEach(function (): void {
-    $this->blog = new SitemapFile('sitemap-collection-blog-1.xml', 'collection-blog', 2, 400);
-    $this->tags = new SitemapFile('sitemap-taxonomy-tags-1.xml', 'taxonomy-tags', 1, 250);
-    $this->index = new SitemapFile('sitemap.xml', 'index', 2, 300);
+    $this->blog = new SitemapFile('sitemap-collection-blog-1.xml', 'collection-blog', 2, 400, 'blog-hash');
+    $this->tags = new SitemapFile('sitemap-taxonomy-tags-1.xml', 'taxonomy-tags', 1, 250, 'tags-hash');
+    $this->index = new SitemapFile('sitemap.xml', 'index', 2, 300, 'index-hash');
 });
 
 it('finds a child file by its filename', function (): void {

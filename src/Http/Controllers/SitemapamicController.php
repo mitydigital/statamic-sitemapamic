@@ -30,9 +30,13 @@ class SitemapamicController
         $site = Site::findByUrl($request->url());
         abort_if($site === null || SiteUrls::pathPrefix($site) !== trim($request->route()->getPrefix() ?? '', '/'), 404);
 
+        // the static site generator writes whatever it gets to disk, so it must never get an empty 304
+        $isStaticSite = $request instanceof StaticSiteRequest;
+        $etags = $isStaticSite ? [] : $request->getETags();
+
         // another request is building and there is nothing to serve yet
         try {
-            $document = $this->sitemapamic->document($site, $filename, $request->getETags());
+            $document = $this->sitemapamic->document($site, $filename, $etags);
         } catch (SitemapBusyException) {
             return response('', 503, ['Retry-After' => '10']);
         }
@@ -56,7 +60,7 @@ class SitemapamicController
         ];
 
         // the static site generator writes getContent() to disk, which a streamed response doesn't have
-        if ($request instanceof StaticSiteRequest) {
+        if ($isStaticSite) {
             try {
                 return response(stream_get_contents($document->stream), 200, $headers);
             } finally {

@@ -90,6 +90,19 @@ it('answers the generator with a plain response it can write to disk', function 
         ->and($response->getContent())->toContain('<loc>http://example.test/nested/region/sitemap-dynamic-1.xml</loc>');
 });
 
+it('answers the generator with the full file even when it carries a matching ETag', function (): void {
+    $etag = $this->get('http://example.test/sitemap.xml')->headers->get('ETag');
+    $request = StaticSiteRequest::create('/', server: ['HTTP_IF_NONE_MATCH' => $etag]);
+    $request->setConfig(['base_url' => 'http://example.test']);
+    $request->setPage(new Page(app(Filesystem::class), [], new Route('http://example.test/sitemap.xml')));
+
+    $response = app(Kernel::class)->handle($request);
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($response->headers->get('ETag'))->toBe($etag)
+        ->and($response->getContent())->toContain('<loc>http://example.test/sitemap-dynamic-1.xml</loc>');
+});
+
 it('adds its URLs to the generator when the generator is resolved', function (): void {
     $extraUrls = (fn () => $this->extraUrls)->call(app(Generator::class));
 

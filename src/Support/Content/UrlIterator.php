@@ -22,6 +22,7 @@ use Statamic\Facades\Collection;
 use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
 use Statamic\Facades\Term;
+use Statamic\Facades\URL;
 use Statamic\Sites\Site as StatamicSite;
 use Statamic\Support\Str;
 use Statamic\Taxonomies\LocalizedTerm;
@@ -114,6 +115,8 @@ class UrlIterator
 
             // Blink is a per-request cache, so clearing it between chunks frees the translations Statamic keeps
             Blink::flush();
+            // Statamic also remembers every URL it tidies for the rest of the request
+            URL::clearUrlCache();
             $this->chunkUris = null;
         }
     }
@@ -185,11 +188,48 @@ class UrlIterator
 
     /**
      * The collection's entries on this site in id order, a chunk at a time.
-     * The ids are sorted once; reading chunks with lazy() would filter and sort the whole collection again for each one.
      *
      * @return Generator<int, list<EntryContract>>
      */
     private function entryChunks(CollectionContract $collection, StatamicSite $site): Generator
+    {
+        return $this->isEloquent() ? $this->entryPages($collection, $site) : $this->entryIdChunks($collection, $site);
+    }
+
+    /**
+     * Each page starts after the last id of the one before, so the database never has to return every id at once
+     * or skip over the entries already read.
+     *
+     * @return Generator<int, list<EntryContract>>
+     */
+    private function entryPages(CollectionContract $collection, StatamicSite $site): Generator
+    {
+        $lastId = null;
+
+        do {
+            $query = $collection->queryEntries()->where('site', $site->handle())->orderBy('id')->limit(self::CHUNK_SIZE);
+            if ($lastId !== null) {
+                $query->where('id', '>', $lastId);
+            }
+
+            $entries = array_values($query->get()->all());
+            if ($entries === []) {
+                return;
+            }
+
+            $lastId = end($entries)->id();
+            $isLastPage = count($entries) < self::CHUNK_SIZE;
+
+            yield $entries;
+        } while (! $isLastPage);
+    }
+
+    /**
+     * On the Stache the ids are sorted once; paging would filter and sort the whole collection again for each chunk.
+     *
+     * @return Generator<int, list<EntryContract>>
+     */
+    private function entryIdChunks(CollectionContract $collection, StatamicSite $site): Generator
     {
         $ids = $collection->queryEntries()->where('site', $site->handle())->orderBy('id')->pluck('id')->all();
 

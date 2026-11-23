@@ -12,6 +12,7 @@ use Statamic\Contracts\Entries\Entry as EntryContract;
 use Statamic\Facades\Blink;
 use Statamic\Facades\Blueprint;
 use Statamic\Facades\Collection;
+use Statamic\Facades\Endpoint\URL;
 use Statamic\Facades\Entry;
 use Statamic\Facades\Site;
 use Statamic\Facades\Taxonomy;
@@ -311,4 +312,55 @@ it('lists a term from a translated entry that inherits its tags', function (): v
     ($this->makeEntry)('translation', [], 'regional', $original);
 
     expect(eloquentSitemapUrls(new Source('regional', taxonomy: 'tags')))->toHaveCount(1);
+});
+
+/** Insert entries as the driver stores them, without saving each one. */
+function insertEloquentEntries(int $count): void
+{
+    $rows = [];
+    for ($position = 0; $position < $count; $position++) {
+        $id = 'entry-'.str_pad((string) $position, 5, '0', STR_PAD_LEFT);
+        $rows[] = [
+            'id' => $id, 'site' => 'default', 'published' => true, 'slug' => $id, 'uri' => '/articles/'.$id,
+            'collection' => 'articles', 'data' => json_encode(['title' => $id]),
+            'created_at' => now(), 'updated_at' => now(),
+        ];
+    }
+    foreach (array_chunk($rows, 100) as $chunk) {
+        DB::table('entries')->insert($chunk);
+    }
+}
+
+it('lists every entry once, in id order, across pages', function (int $count): void {
+    insertEloquentEntries($count);
+
+    $locations = array_map(fn (SitemapamicUrl $url): string => $url->loc, eloquentSitemapUrls($this->source));
+
+    expect($locations)->toHaveCount($count)
+        ->and(array_unique($locations))->toHaveCount($count)
+        ->and($locations[0])->toBe('http://localhost/articles/entry-00000')
+        ->and($locations[$count - 1])->toBe('http://localhost/articles/entry-'.str_pad((string) ($count - 1), 5, '0', STR_PAD_LEFT));
+})->with([999, 1000, 1001, 2000]);
+
+it('never loads every entry id in one query', function (): void {
+    insertEloquentEntries(1500);
+    $unlimited = [];
+    DB::listen(function ($query) use (&$unlimited): void {
+        // every query for entries is either limited to a page or to the ids of one
+        if (str_contains($query->sql, 'from "entries"') && ! str_contains($query->sql, 'limit') && ! str_contains($query->sql, ' in (')) {
+            $unlimited[] = $query->sql;
+        }
+    });
+
+    expect(eloquentSitemapUrls($this->source))->toHaveCount(1500)
+        ->and($unlimited)->toBe([]);
+});
+
+it('does not keep every URL in memory', function (): void {
+    insertEloquentEntries(1500);
+
+    eloquentSitemapUrls($this->source);
+
+    $cache = new ReflectionProperty(URL::class, 'externalAppUrlsCache');
+    expect(count($cache->getValue() ?? []))->toBeLessThan(1000);
 });

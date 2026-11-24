@@ -9,6 +9,7 @@ use MityDigital\Sitemapamic\Support\Content\DynamicRoutes;
 use MityDigital\Sitemapamic\Support\Content\UrlIterator;
 use MityDigital\Sitemapamic\Support\Sitemapamic;
 use MityDigital\Sitemapamic\Tests\Fixtures\CustomUriEntry;
+use MityDigital\Sitemapamic\Tests\Fixtures\TrackedEntry;
 use Statamic\Facades\Blueprint;
 use Statamic\Facades\Collection;
 use Statamic\Facades\Entry;
@@ -715,3 +716,44 @@ it('matches a term by the slug of the stored tag value', function (): void {
 
     expect(array_map(fn (SitemapamicUrl $record): string => $record->loc, $records))->toBe(['http://localhost/tags/foo-bar']);
 });
+
+it('frees each chunk of entries before loading the next', function (string $kind): void {
+    File::put($this->fixturePath.'/collections/articles.yaml', "title: Articles\nsites: [default, regional]\nroute: '/articles/{slug}'\ntemplate: article\ntaxonomies: [tags]\nentry_class: ".TrackedEntry::class."\n");
+    for ($position = 0; $position < 250; $position++) {
+        $id = 'entry-'.str_pad((string) $position, 5, '0', STR_PAD_LEFT);
+        File::put($this->fixturePath.'/collections/articles/default/'.$id.'.md', "---\nid: $id\ntitle: $id\ntags: [example]\nupdated_at: 1700000000\n---\n");
+    }
+    $term = Term::make('example')->taxonomy('tags');
+    $term->in('default')->set('title', 'Example');
+    $term->save();
+    $source = $kind === 'entry' ? $this->source : new Source('default', taxonomy: 'tags');
+    // build the indexes first, so only the sitemap's own reading is tracked
+    iterator_to_array(app(UrlIterator::class)->forSource($source));
+    config(['statamic.system.fake_sql_queries' => true]);
+    TrackedEntry::$loaded = [];
+    $inMemory = [];
+    Event::listen(QueryExecuted::class, function (QueryExecuted $query) use (&$inMemory): void {
+        // Statamic reports a chunk's query once its entries are loaded
+        if (str_contains($query->sql, 'from entries') && str_contains($query->sql, 'id in (')) {
+            $inMemory[] = TrackedEntry::countInMemory();
+        }
+    });
+
+    $records = iterator_to_array(app(UrlIterator::class)->forSource($source));
+
+    expect($records)->toHaveCount($kind === 'entry' ? 250 : 1)
+        ->and($inMemory)->toBe([100, 100, 50]);
+})->with(['entry', 'term']);
+
+it('lists every entry once, in id order, across chunks', function (int $count): void {
+    $expected = [];
+    for ($position = 0; $position < $count; $position++) {
+        $id = 'entry-'.str_pad((string) $position, 5, '0', STR_PAD_LEFT);
+        File::put($this->fixturePath.'/collections/articles/default/'.$id.'.md', "---\nid: $id\ntitle: $id\nupdated_at: 1700000000\n---\n");
+        $expected[] = 'http://localhost/articles/'.$id;
+    }
+
+    $records = iterator_to_array(app(UrlIterator::class)->forSource($this->source));
+
+    expect(array_map(fn (SitemapamicUrl $record): string => $record->loc, $records))->toBe($expected);
+})->with([99, 100, 101, 200]);

@@ -2,6 +2,7 @@
 
 namespace MityDigital\Sitemapamic\Support\Content;
 
+use ArrayObject;
 use Carbon\CarbonInterface;
 use Closure;
 use Generator;
@@ -31,7 +32,11 @@ class UrlIterator
 {
     private const array HIDDEN_DATE_BEHAVIOURS = ['private', 'unlisted'];
 
-    private const int CHUNK_SIZE = 1000;
+    /** Entries are loaded with all of their content, so only a few are held at once. */
+    private const int ENTRY_CHUNK_SIZE = 100;
+
+    /** Statamic sorts every term again for each page, so terms use larger pages. */
+    private const int TERM_CHUNK_SIZE = 1000;
 
     /** @var array<string, string> each mapping's field, validated the first time it is needed */
     private array $mappedFields = [];
@@ -57,8 +62,14 @@ class UrlIterator
         private Configuration $configuration,
     ) {}
 
-    /** @return Generator<int, SitemapamicUrl> */
-    public function forSource(Source $source): Generator
+    /**
+     * Sources that are given the same $termDates share each collection's term dates, instead of reading its entries again.
+     * Only share them within one build, so a later build never uses old dates.
+     *
+     * @param  ArrayObject<string, array<string, array<string, CarbonInterface>>>  $termDates
+     * @return Generator<int, SitemapamicUrl>
+     */
+    public function forSource(Source $source, ArrayObject $termDates = new ArrayObject): Generator
     {
         // config, computed callbacks and views can change between sources, so each source works them out again
         $this->mappedFields = [];
@@ -82,7 +93,7 @@ class UrlIterator
         // contextual term pages use their taxonomy's defaults too
         $this->defaults = $this->configuration->defaults('taxonomies', $source->taxonomy);
 
-        yield from $this->termUrls($source->taxonomy, $source->collection, $site);
+        yield from $this->termUrls($source->taxonomy, $source->collection, $site, $termDates);
     }
 
     /** @return Generator<int, SitemapamicUrl> */
@@ -96,7 +107,8 @@ class UrlIterator
         // only a collection on more than one site can have localisations
         $isMultisite = $collection->sites()->count() > 1;
 
-        foreach ($this->entryChunks($collection, $site) as $entries) {
+        foreach ($this->entryChunks($collection, $site) as $chunk) {
+            $entries = $chunk->exchangeArray([]);
             $localisations = $isMultisite ? $this->localisationsByRoot($collection, $entries) : [];
             $this->chunkUris = $this->storedUris($collection, [...$entries, ...array_merge([], ...array_map(array_values(...), array_values($localisations)))]);
 
@@ -118,6 +130,8 @@ class UrlIterator
             // Statamic also remembers every URL it tidies for the rest of the request
             URL::clearUrlCache();
             $this->chunkUris = null;
+            // free this chunk before the next one is loaded
+            unset($entries, $entry, $localisations);
         }
     }
 
@@ -188,8 +202,10 @@ class UrlIterator
 
     /**
      * The collection's entries on this site in id order, a chunk at a time.
+     * A generator keeps what it last yielded until it yields again, so each chunk is in an object the caller must empty.
+     * Otherwise a chunk would stay in memory while the next one is loaded.
      *
-     * @return Generator<int, list<EntryContract>>
+     * @return Generator<int, ArrayObject<int, EntryContract>>
      */
     private function entryChunks(CollectionContract $collection, StatamicSite $site): Generator
     {
@@ -200,14 +216,14 @@ class UrlIterator
      * Each page starts after the last id of the one before, so the database never has to return every id at once
      * or skip over the entries already read.
      *
-     * @return Generator<int, list<EntryContract>>
+     * @return Generator<int, ArrayObject<int, EntryContract>>
      */
     private function entryPages(CollectionContract $collection, StatamicSite $site): Generator
     {
         $lastId = null;
 
         do {
-            $query = $collection->queryEntries()->where('site', $site->handle())->orderBy('id')->limit(self::CHUNK_SIZE);
+            $query = $collection->queryEntries()->where('site', $site->handle())->orderBy('id')->limit(self::ENTRY_CHUNK_SIZE);
             if ($lastId !== null) {
                 $query->where('id', '>', $lastId);
             }
@@ -218,31 +234,39 @@ class UrlIterator
             }
 
             $lastId = end($entries)->id();
-            $isLastPage = count($entries) < self::CHUNK_SIZE;
+            $isLastPage = count($entries) < self::ENTRY_CHUNK_SIZE;
 
-            yield $entries;
+            $chunk = new ArrayObject($entries);
+            unset($entries);
+
+            yield $chunk;
         } while (! $isLastPage);
     }
 
     /**
      * On the Stache the ids are sorted once; paging would filter and sort the whole collection again for each chunk.
      *
-     * @return Generator<int, list<EntryContract>>
+     * @return Generator<int, ArrayObject<int, EntryContract>>
      */
     private function entryIdChunks(CollectionContract $collection, StatamicSite $site): Generator
     {
         $ids = $collection->queryEntries()->where('site', $site->handle())->orderBy('id')->pluck('id')->all();
 
-        foreach (array_chunk($ids, self::CHUNK_SIZE) as $chunk) {
+        foreach (array_chunk($ids, self::ENTRY_CHUNK_SIZE) as $chunkIds) {
             // whereIn doesn't keep the order it was given, so put the entries back in id order
-            $entries = $collection->queryEntries()->whereIn('id', $chunk)->get()->keyBy(fn (EntryContract $entry): string => $entry->id());
+            $entries = $collection->queryEntries()->whereIn('id', $chunkIds)->get()->keyBy(fn (EntryContract $entry): string => $entry->id());
+            $chunk = new ArrayObject(array_values(array_filter(array_map(fn (string $id): ?EntryContract => $entries->get($id), $chunkIds))));
+            unset($entries);
 
-            yield array_values(array_filter(array_map(fn (string $id): ?EntryContract => $entries->get($id), $chunk)));
+            yield $chunk;
         }
     }
 
-    /** @return Generator<int, SitemapamicUrl> */
-    private function termUrls(string $taxonomy, ?string $collectionHandle, StatamicSite $site): Generator
+    /**
+     * @param  ArrayObject<string, array<string, array<string, CarbonInterface>>>  $termDates
+     * @return Generator<int, SitemapamicUrl>
+     */
+    private function termUrls(string $taxonomy, ?string $collectionHandle, StatamicSite $site, ArrayObject $termDates): Generator
     {
         $query = Term::query()->where('taxonomy', $taxonomy)->where('site', $site->handle());
         if ($collectionHandle !== null) {
@@ -253,9 +277,9 @@ class UrlIterator
 
         // a contextual term only counts its own collection's entries
         $collections = $collection === null ? Taxonomy::find($taxonomy)?->collections()->all() ?? [] : [$collection];
-        $newestEntryDates = $this->newestEntryDates($taxonomy, $collections, $site);
+        $newestEntryDates = $this->newestEntryDates($taxonomy, $collections, $site, $termDates);
 
-        foreach ($query->orderBy('id')->lazy(self::CHUNK_SIZE) as $term) {
+        foreach ($query->orderBy('id')->lazy(self::TERM_CHUNK_SIZE) as $term) {
             $url = $this->termUrl((clone $term)->collection($collection), $site, $newestEntryDates);
             if ($url !== null) {
                 yield $url;
@@ -365,36 +389,65 @@ class UrlIterator
     }
 
     /**
-     * Each term slug's newest listed, published entry date on this site, found in one pass over the collections' entries
-     * instead of one query per term. Entries are matched to terms the way each driver's whereTaxonomy() matches them.
+     * Each term slug's newest listed, published entry date on this site, across the collections.
      *
      * @param  iterable<CollectionContract>  $collections
+     * @param  ArrayObject<string, array<string, array<string, CarbonInterface>>>  $termDates
      * @return array<string, CarbonInterface>
      */
-    private function newestEntryDates(string $taxonomy, iterable $collections, StatamicSite $site): array
+    private function newestEntryDates(string $taxonomy, iterable $collections, StatamicSite $site, ArrayObject $termDates): array
+    {
+        $newest = [];
+        foreach ($collections as $collection) {
+            $key = $collection->handle().'|'.$site->handle();
+            $termDates[$key] ??= $this->collectionTermDates($collection, $site);
+
+            foreach ($termDates[$key][$taxonomy] ?? [] as $slug => $date) {
+                if (! isset($newest[$slug]) || $date->gt($newest[$slug])) {
+                    $newest[$slug] = $date;
+                }
+            }
+        }
+
+        return $newest;
+    }
+
+    /**
+     * The newest listed, published entry date for every term of the collection's taxonomies, by taxonomy and then slug.
+     * Found in one pass over the collection's entries instead of one query per term, or one pass per taxonomy.
+     * Entries are matched to terms the way each driver's whereTaxonomy() matches them.
+     *
+     * @return array<string, array<string, CarbonInterface>>
+     */
+    private function collectionTermDates(CollectionContract $collection, StatamicSite $site): array
     {
         // the Stache matches a term by the slug of each stored value, the Eloquent driver by the stored value itself
         $matchesSlug = ! $this->isEloquent();
+        $taxonomies = $collection->taxonomies()->map->handle()->all();
 
         $newest = [];
-        foreach ($collections as $collection) {
-            foreach ($this->entryChunks($collection, $site) as $entries) {
-                foreach ($entries as $entry) {
-                    if (! $entry->published() || ! $this->isListedDate($entry, $collection)) {
-                        continue;
-                    }
+        foreach ($this->entryChunks($collection, $site) as $chunk) {
+            $entries = $chunk->exchangeArray([]);
 
-                    $lastModified = $this->lastModified($entry);
+            foreach ($entries as $entry) {
+                if (! $entry->published() || ! $this->isListedDate($entry, $collection)) {
+                    continue;
+                }
+
+                $lastModified = $this->lastModified($entry);
+                foreach ($taxonomies as $taxonomy) {
                     foreach ((array) $entry->value($taxonomy) as $value) {
                         $slug = $matchesSlug ? Str::slug((string) $value) : (string) $value;
-                        if (! isset($newest[$slug]) || $lastModified->gt($newest[$slug])) {
-                            $newest[$slug] = $lastModified;
+                        if (! isset($newest[$taxonomy][$slug]) || $lastModified->gt($newest[$taxonomy][$slug])) {
+                            $newest[$taxonomy][$slug] = $lastModified;
                         }
                     }
                 }
-
-                Blink::flush();
             }
+
+            Blink::flush();
+            // free this chunk before the next one is loaded
+            unset($entries, $entry);
         }
 
         return $newest;

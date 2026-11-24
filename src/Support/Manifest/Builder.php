@@ -2,6 +2,8 @@
 
 namespace MityDigital\Sitemapamic\Support\Manifest;
 
+use ArrayObject;
+use Carbon\CarbonInterface;
 use Closure;
 use Generator;
 use MityDigital\Sitemapamic\Data\SitemapFile;
@@ -80,9 +82,10 @@ class Builder
         };
 
         try {
-            $fragments = (function () use ($sources): Generator {
+            $termDates = new ArrayObject;
+            $fragments = (function () use ($sources, $termDates): Generator {
                 foreach ($sources as $source) {
-                    yield from $this->fragments($source);
+                    yield from $this->fragments($source, $termDates);
                 }
             })();
             $files = $this->writer->write(self::SINGLE_SOURCE, $fragments, $this->renderer->urlsetStart(), $this->renderer->urlsetEnd(), $holdFirst);
@@ -119,10 +122,11 @@ class Builder
         $end = $this->renderer->urlsetEnd();
         $files = [];
         $sourceForFile = [];
+        $termDates = new ArrayObject;
 
         // write each source's files, in the resolver's stable order
         foreach ($sources as $source) {
-            $written = $this->writer->write($source->name(), $this->fragments($source), $start, $end, $store);
+            $written = $this->writer->write($source->name(), $this->fragments($source, $termDates), $start, $end, $store);
 
             foreach ($written as $file) {
                 $earlier = $sourceForFile[$file->filename] ?? null;
@@ -145,10 +149,13 @@ class Builder
         return ['files' => $files, 'index' => $this->writeIndex($site, $files, $store)];
     }
 
-    /** @return Generator<int, string> */
-    private function fragments(Source $source): Generator
+    /**
+     * @param  ArrayObject<string, array<string, array<string, CarbonInterface>>>  $termDates  shared by every source in the build
+     * @return Generator<int, string>
+     */
+    private function fragments(Source $source, ArrayObject $termDates): Generator
     {
-        foreach ($this->urlIterator->forSource($source) as $url) {
+        foreach ($this->urlIterator->forSource($source, $termDates) as $url) {
             yield $this->renderer->url($url);
         }
     }

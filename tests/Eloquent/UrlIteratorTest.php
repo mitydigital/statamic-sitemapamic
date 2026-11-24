@@ -9,6 +9,7 @@ use MityDigital\Sitemapamic\Data\Source;
 use MityDigital\Sitemapamic\Models\SitemapamicUrl;
 use MityDigital\Sitemapamic\Support\Content\UrlIterator;
 use Statamic\Contracts\Entries\Entry as EntryContract;
+use Statamic\Eloquent\Entries\UuidEntryModel;
 use Statamic\Facades\Blink;
 use Statamic\Facades\Blueprint;
 use Statamic\Facades\Collection;
@@ -340,7 +341,7 @@ it('lists every entry once, in id order, across pages', function (int $count): v
         ->and(array_unique($locations))->toHaveCount($count)
         ->and($locations[0])->toBe('http://localhost/articles/entry-00000')
         ->and($locations[$count - 1])->toBe('http://localhost/articles/entry-'.str_pad((string) ($count - 1), 5, '0', STR_PAD_LEFT));
-})->with([999, 1000, 1001, 2000]);
+})->with([99, 100, 101, 200, 1001]);
 
 it('never loads every entry id in one query', function (): void {
     insertEloquentEntries(1500);
@@ -364,3 +365,28 @@ it('does not keep every URL in memory', function (): void {
     $cache = new ReflectionProperty(URL::class, 'externalAppUrlsCache');
     expect(count($cache->getValue() ?? []))->toBeLessThan(1000);
 });
+
+it('holds no more than one chunk of entries in memory', function (string $kind): void {
+    insertEloquentEntries(250);
+    DB::table('entries')->update(['data' => json_encode(['title' => 'Example', 'tags' => ['example']])]);
+    ($this->makeTerm)('example');
+    $source = $kind === 'entry' ? $this->source : new Source('default', taxonomy: 'tags');
+    Blink::flush();
+    // every entry keeps its model, so a model in memory is an entry in memory
+    $loaded = [];
+    $mostInMemory = 0;
+    UuidEntryModel::retrieved(function (UuidEntryModel $model) use (&$loaded, &$mostInMemory): void {
+        $loaded[] = WeakReference::create($model);
+        $inMemory = count(array_filter($loaded, fn (WeakReference $reference): bool => $reference->get() !== null));
+        $mostInMemory = max($mostInMemory, $inMemory);
+    });
+
+    $count = 0;
+    foreach (app(UrlIterator::class)->forSource($source) as $url) {
+        $count++;
+    }
+
+    expect($count)->toBe($kind === 'entry' ? 250 : 1)
+        ->and($loaded)->toHaveCount(250)
+        ->and($mostInMemory)->toBe(100);
+})->with(['entry', 'term']);

@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Routing\RouteCollection;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use MityDigital\Sitemapamic\Data\SitemapFile;
@@ -323,3 +325,87 @@ it('checks an alternate template in its own site view folder', function (string 
     'template in the alternate site folder' => ['regional_only', true],
     'template only in the site being built' => ['default_only', false],
 ]);
+
+/** Two collections and two taxonomies, so each term's date depends on which collections its sitemap covers. */
+function makeSharedTaxonomies(string $fixturePath, Closure $makeEntry): void
+{
+    config(['sitemapamic.collections' => ['*'], 'sitemapamic.taxonomies' => ['*']]);
+    File::ensureDirectoryExists($fixturePath.'/collections/other/default');
+    File::put($fixturePath.'/collections/articles.yaml', "title: Articles\nsites: [default, regional]\nroute: '/articles/{slug}'\ntemplate: article\ntaxonomies: [tags, topics]\n");
+    File::put($fixturePath.'/collections/other.yaml', "title: Other\nsites: [default]\nroute: '/other/{slug}'\ntemplate: article\ntaxonomies: [tags]\n");
+    File::put($fixturePath.'/taxonomies/topics.yaml', "title: Topics\nsites: [default, regional]\n");
+    foreach (['tags', 'topics'] as $taxonomy) {
+        // the same slug in both, so neither can borrow the other's dates
+        $term = Term::make('shared')->taxonomy($taxonomy);
+        $term->in('default')->set('title', 'Shared')->set('updated_at', 1500000000);
+        $term->save();
+    }
+    $makeEntry('tagged', ['tags' => ['shared'], 'updated_at' => 1700000000]);
+    $makeEntry('topical', ['topics' => ['shared'], 'updated_at' => 1600000000]);
+    Entry::make()->id('other')->collection('other')->locale('default')->slug('other')->published(true)
+        ->data(['title' => 'Other', 'tags' => ['shared'], 'updated_at' => 1800000000])->saveQuietly();
+}
+
+/** @return array<string, int> each file's only lastmod */
+function termDates(GeneratedSitemapFiles $stored): array
+{
+    $dates = [];
+    foreach ($stored->contents as $filename => $xml) {
+        if (str_contains($filename, 'taxonomy') && preg_match('/<lastmod>(.+?)<\/lastmod>/', $xml, $matches)) {
+            $dates[$filename] = strtotime($matches[1]);
+        }
+    }
+    ksort($dates);
+
+    return $dates;
+}
+
+it('keeps every sitemap to its own term dates when a build shares them', function (): void {
+    makeSharedTaxonomies($this->fixturePath, $this->makeEntry);
+    foreach (['topics/show', 'articles/topics/show', 'other/tags/show'] as $template) {
+        $this->template($template);
+    }
+
+    generateSitemaps('default', $stored = new GeneratedSitemapFiles);
+
+    expect(termDates($stored))->toBe([
+        'sitemap-collection-articles-taxonomy-tags-1.xml' => 1700000000,
+        'sitemap-collection-articles-taxonomy-topics-1.xml' => 1600000000,
+        'sitemap-collection-other-taxonomy-tags-1.xml' => 1800000000,
+        'sitemap-taxonomy-tags-1.xml' => 1800000000,
+        'sitemap-taxonomy-topics-1.xml' => 1600000000,
+    ]);
+});
+
+it('reads a collection once for its term dates, however many sitemaps need them', function (string $mode): void {
+    config(['sitemapamic.mode' => $mode]);
+    makeSharedTaxonomies($this->fixturePath, $this->makeEntry);
+    foreach (['topics/show', 'articles/topics/show', 'other/tags/show'] as $template) {
+        $this->template($template);
+    }
+    generateSitemaps('default', new GeneratedSitemapFiles);
+    config(['statamic.system.fake_sql_queries' => true]);
+    $chunks = 0;
+    Event::listen(QueryExecuted::class, function (QueryExecuted $query) use (&$chunks): void {
+        if (str_contains($query->sql, 'from entries') && str_contains($query->sql, 'id in (')) {
+            $chunks++;
+        }
+    });
+
+    generateSitemaps('default', new GeneratedSitemapFiles);
+
+    // two collections, each read once for its own URLs and once for its term dates
+    expect($chunks)->toBe(4);
+})->with(['automatic', 'single']);
+
+it('works out term dates again for each build', function (): void {
+    makeSharedTaxonomies($this->fixturePath, $this->makeEntry);
+    $builder = new Builder(app(SourceResolver::class), app(UrlIterator::class), app(Renderer::class), new SiteViews, new Writer);
+    $builder->generate(Site::get('default'), ($first = new GeneratedSitemapFiles)->store(...));
+    Entry::find('tagged')->set('updated_at', 1900000000)->saveQuietly();
+
+    $builder->generate(Site::get('default'), ($second = new GeneratedSitemapFiles)->store(...));
+
+    expect(termDates($first)['sitemap-taxonomy-tags-1.xml'])->toBe(1800000000)
+        ->and(termDates($second)['sitemap-taxonomy-tags-1.xml'])->toBe(1900000000);
+});

@@ -6,6 +6,7 @@ use ArrayObject;
 use Carbon\CarbonInterface;
 use Closure;
 use Generator;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as LaravelCollection;
 use InvalidArgumentException;
 use MityDigital\Sitemapamic\Data\Source;
@@ -18,6 +19,7 @@ use Statamic\Contracts\Auth\Protect\Protectable;
 use Statamic\Contracts\Entries\Collection as CollectionContract;
 use Statamic\Contracts\Entries\Entry as EntryContract;
 use Statamic\Contracts\Entries\EntryRepository as EntryRepositoryContract;
+use Statamic\Contracts\Entries\QueryBuilder as EntryQueryBuilder;
 use Statamic\Facades\Blink;
 use Statamic\Facades\Collection;
 use Statamic\Facades\Site;
@@ -50,8 +52,8 @@ class UrlIterator
     /** @var array<string, bool> whether each template's view exists for each site */
     private array $templateExists = [];
 
-    /** @var array<string, string|null>|null the stored URIs of the current chunk's entries, on Eloquent only */
-    private ?array $chunkUris = null;
+    /** whether entries are stored by the Eloquent driver */
+    private bool $isEloquent = false;
 
     /** @var array{changefreq: ?string, priority: ?float} */
     private array $defaults = ['changefreq' => null, 'priority' => null];
@@ -76,7 +78,7 @@ class UrlIterator
         $this->computedCallbacks = [];
         $this->routable = [];
         $this->templateExists = [];
-        $this->chunkUris = null;
+        $this->isEloquent = $this->entriesAreEloquent();
 
         $site = Site::get($source->site);
 
@@ -110,7 +112,6 @@ class UrlIterator
         foreach ($this->entryChunks($collection, $site) as $chunk) {
             $entries = $chunk->exchangeArray([]);
             $localisations = $isMultisite ? $this->localisationsByRoot($collection, $entries) : [];
-            $this->chunkUris = $this->storedUris($collection, [...$entries, ...array_merge([], ...array_map(array_values(...), array_values($localisations)))]);
 
             foreach ($entries as $entry) {
                 if (! $this->isReachable($entry, $site) || ! $this->hasTemplate($entry)) {
@@ -125,38 +126,31 @@ class UrlIterator
                 yield $url;
             }
 
-            // Blink is a per-request cache, so clearing it between chunks frees the translations Statamic keeps
-            Blink::flush();
+            $this->flushBlinkBetweenChunks();
             // Statamic also remembers every URL it tidies for the rest of the request
             URL::clearUrlCache();
-            $this->chunkUris = null;
             // free this chunk before the next one is loaded
             unset($entries, $entry, $localisations);
         }
+
+        // a queue worker keeps Blink between jobs, so a collection mustn't outlive its source
+        Blink::flush();
     }
 
     /**
-     * The URIs the Eloquent driver stored for these entries, which it also routes by, so they needn't be rebuilt from the route.
-     * Eloquent only: on the Stache, two plucks come back in index order rather than the order asked for, so the lists wouldn't line up.
-     * Both plucks are keyless, because the driver builds every entry for a keyed pluck.
-     *
-     * @param  list<EntryContract>  $entries
-     * @return array<string, string|null>|null null when the entries aren't stored by the Eloquent driver
+     * Blink is a per-request cache, so clearing it between chunks frees the entries and translations Statamic keeps.
+     * Collections stay, because on Eloquent every chunk would query for them again.
      */
-    private function storedUris(CollectionContract $collection, array $entries): ?array
+    private function flushBlinkBetweenChunks(): void
     {
-        if ($entries === [] || ! $this->isEloquent()) {
-            return null;
-        }
+        $collections = array_filter(Blink::all(), fn (mixed $value): bool => $value instanceof CollectionContract);
 
-        $ids = array_values(array_unique(array_map(fn (EntryContract $entry): string => $entry->id(), $entries)));
-        $query = fn () => $collection->queryEntries()->whereIn('id', $ids)->orderBy('id');
-
-        return array_combine($query()->pluck('id')->all(), $query()->pluck('uri')->all());
+        Blink::flush();
+        Blink::put($collections);
     }
 
     /** Whether entries are stored by the Eloquent driver, checked by name so the addon doesn't depend on it. */
-    private function isEloquent(): bool
+    private function entriesAreEloquent(): bool
     {
         return is_a(app(EntryRepositoryContract::class), 'Statamic\Eloquent\Entries\EntryRepository');
     }
@@ -179,10 +173,13 @@ class UrlIterator
         $byRoot = [];
         $seen = array_fill_keys(array_keys($roots), true);
         $origins = array_keys($roots);
+        $this->keepInBlink($roots);
         while ($origins !== []) {
-            $children = $collection->queryEntries()->whereIn('origin', $origins)->get()
+            $children = $this->entryQuery($collection)->whereIn('origin', $origins)->get()
                 // guard against cyclic or duplicate origin data, as descendants() does
                 ->reject(fn (EntryContract $child): bool => isset($seen[$child->id()]));
+
+            $this->keepInBlink($children);
 
             $origins = [];
             foreach ($children as $child) {
@@ -201,6 +198,51 @@ class UrlIterator
     }
 
     /**
+     * The collection's entries. On Eloquent, each one's content is only decoded once, and the originals of any
+     * translations are loaded together, because the driver looks up each translation's as it builds it.
+     */
+    private function entryQuery(CollectionContract $collection): EntryQueryBuilder
+    {
+        $query = $collection->queryEntries();
+        if ($this->isEloquent) {
+            $query->afterQuery(function (LaravelCollection $models) use ($collection): LaravelCollection {
+                $models->each(fn (Model $model) => DecodedOnce::apply($model, 'data'));
+
+                $missing = $models->pluck('origin_id')->filter()->unique()
+                    ->reject(fn (string $id): bool => Blink::has($this->entryBlinkKey($id)));
+                if ($missing->isNotEmpty()) {
+                    $this->keepInBlink($this->entryQuery($collection)->whereIn('id', $missing->values()->all())->get());
+                }
+
+                return $models;
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Keep entries where the Eloquent driver looks for them, so it needn't query for each one, until Blink is next flushed.
+     *
+     * @param  iterable<EntryContract>  $entries
+     */
+    private function keepInBlink(iterable $entries): void
+    {
+        if (! $this->isEloquent) {
+            return;
+        }
+
+        foreach ($entries as $entry) {
+            Blink::put($this->entryBlinkKey($entry->id()), $entry);
+        }
+    }
+
+    private function entryBlinkKey(string $id): string
+    {
+        return 'eloquent-entry-'.$id;
+    }
+
+    /**
      * The collection's entries on this site in id order, a chunk at a time.
      * A generator keeps what it last yielded until it yields again, so each chunk is in an object the caller must empty.
      * Otherwise a chunk would stay in memory while the next one is loaded.
@@ -209,7 +251,7 @@ class UrlIterator
      */
     private function entryChunks(CollectionContract $collection, StatamicSite $site): Generator
     {
-        return $this->isEloquent() ? $this->entryPages($collection, $site) : $this->entryIdChunks($collection, $site);
+        return $this->isEloquent ? $this->entryPages($collection, $site) : $this->entryIdChunks($collection, $site);
     }
 
     /**
@@ -223,7 +265,7 @@ class UrlIterator
         $lastId = null;
 
         do {
-            $query = $collection->queryEntries()->where('site', $site->handle())->orderBy('id')->limit(self::ENTRY_CHUNK_SIZE);
+            $query = $this->entryQuery($collection)->where('site', $site->handle())->orderBy('id')->limit(self::ENTRY_CHUNK_SIZE);
             if ($lastId !== null) {
                 $query->where('id', '>', $lastId);
             }
@@ -422,7 +464,7 @@ class UrlIterator
     private function collectionTermDates(CollectionContract $collection, StatamicSite $site): array
     {
         // the Stache matches a term by the slug of each stored value, the Eloquent driver by the stored value itself
-        $matchesSlug = ! $this->isEloquent();
+        $matchesSlug = ! $this->isEloquent;
         $taxonomies = $collection->taxonomies()->map->handle()->all();
 
         $newest = [];
@@ -445,10 +487,13 @@ class UrlIterator
                 }
             }
 
-            Blink::flush();
+            $this->flushBlinkBetweenChunks();
             // free this chunk before the next one is loaded
             unset($entries, $entry);
         }
+
+        // a queue worker keeps Blink between jobs, so a collection mustn't outlive its source
+        Blink::flush();
 
         return $newest;
     }
@@ -465,11 +510,11 @@ class UrlIterator
         return ! $isRedirectOrProtected && $this->recordUri($record);
     }
 
-    /** The stored URI for an entry in the current chunk on Eloquent, otherwise the record's own. */
+    /** On Eloquent, the URI the driver stored, which it also routes by, so it needn't be rebuilt from the route. */
     private function recordUri(EntryContract|LocalizedTerm $record): ?string
     {
-        if ($record instanceof EntryContract && $this->chunkUris !== null && array_key_exists($record->id(), $this->chunkUris)) {
-            return $this->chunkUris[$record->id()];
+        if ($this->isEloquent && $record instanceof EntryContract) {
+            return $record->model()->uri;
         }
 
         return $record->uri();

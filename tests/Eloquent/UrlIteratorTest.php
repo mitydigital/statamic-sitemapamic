@@ -1,13 +1,17 @@
 <?php
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Json;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Schema\Blueprint as SchemaBlueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use MityDigital\Sitemapamic\Data\Source;
 use MityDigital\Sitemapamic\Models\SitemapamicUrl;
 use MityDigital\Sitemapamic\Support\Content\UrlIterator;
+use MityDigital\Sitemapamic\Tests\Fixtures\ArrayCastEntryModel;
 use Statamic\Contracts\Entries\Entry as EntryContract;
 use Statamic\Eloquent\Entries\UuidEntryModel;
 use Statamic\Facades\Blink;
@@ -275,10 +279,46 @@ it('loads translations once per chunk', function (): void {
 
     $records = iterator_to_array(app(UrlIterator::class)->forSource($this->source));
 
-    // allows the driver's one origin lookup per translation, but not in() per entry
     expect($records)->toHaveCount(30)
         ->and($records[0]->alternates)->toHaveCount(2)
-        ->and($entryQueries)->toBeLessThanOrEqual(30 + 10);
+        ->and($entryQueries)->toBeLessThanOrEqual(10);
+});
+
+it('loads the originals of translations once per chunk', function (string $kind): void {
+    if ($kind === 'term') {
+        $term = Term::make('example')->taxonomy('tags');
+        $term->in('default')->set('title', 'Example');
+        $term->in('regional')->set('title', 'Beispiel');
+        $term->save();
+    }
+    for ($position = 0; $position < 30; $position++) {
+        $original = ($this->makeEntry)('original-'.$position, ['tags' => ['example']]);
+        ($this->makeEntry)('translation-'.$position, [], 'regional', $original);
+    }
+    Blink::flush();
+    $entryQueries = 0;
+    DB::listen(function ($query) use (&$entryQueries): void {
+        if (str_contains($query->sql, '"entries"')) {
+            $entryQueries++;
+        }
+    });
+
+    $source = $kind === 'entry' ? new Source('regional', collection: 'articles') : new Source('regional', taxonomy: 'tags');
+    $records = iterator_to_array(app(UrlIterator::class)->forSource($source));
+
+    expect($records)->toHaveCount($kind === 'entry' ? 30 : 1)
+        ->and($entryQueries)->toBeLessThanOrEqual(10);
+})->with(['entry', 'term']);
+
+it('lists an entry whose translation has lost its original', function (): void {
+    $original = ($this->makeEntry)('original');
+    ($this->makeEntry)('translation', [], 'regional', $original);
+    DB::table('entries')->where('id', 'original')->delete();
+
+    $records = eloquentSitemapUrls(new Source('regional', collection: 'articles'));
+
+    expect($records)->toHaveCount(1)
+        ->and($records[0]->loc)->toBe('https://regional.example/nested/articles/translation');
 });
 
 it('uses the stored uri on eloquent', function (): void {
@@ -390,3 +430,60 @@ it('holds no more than one chunk of entries in memory', function (string $kind):
         ->and($loaded)->toHaveCount(250)
         ->and($mostInMemory)->toBe(100);
 })->with(['entry', 'term']);
+
+/** @return array{queries: list<string>, decodes: int} what reading the source cost */
+function eloquentCost(Source $source): array
+{
+    $queries = [];
+    $decodes = 0;
+    DB::listen(function ($query) use (&$queries): void {
+        $queries[] = $query->sql;
+    });
+    Json::decodeUsing(function (string $json, ?bool $associative = true) use (&$decodes): mixed {
+        // only content has this, so other JSON isn't counted
+        $decodes += str_contains($json, '"title":"entry-') ? 1 : 0;
+
+        return json_decode($json, $associative ?? true);
+    });
+
+    try {
+        eloquentSitemapUrls($source);
+    } finally {
+        Json::decodeUsing(null);
+        Event::forget(QueryExecuted::class);
+    }
+
+    return ['queries' => $queries, 'decodes' => $decodes];
+}
+
+it('runs the same number of queries for each chunk, however many entries there are', function (string $kind, int $perChunk): void {
+    $counts = [];
+    foreach ([200, 400, 600] as $count) {
+        DB::table('entries')->delete();
+        insertEloquentEntries($count);
+        $source = $kind === 'entry' ? $this->source : new Source('default', taxonomy: 'tags');
+        $counts[] = count(eloquentCost($source)['queries']);
+    }
+
+    // 200 more entries are two more chunks
+    expect($counts[1] - $counts[0])->toBe(2 * $perChunk)
+        ->and($counts[2] - $counts[1])->toBe(2 * $perChunk);
+})->with([
+    'entries, and their translations' => ['entry', 2],
+    'entries for term dates' => ['term', 1],
+]);
+
+it('decodes each entry once', function (string $kind): void {
+    insertEloquentEntries(150);
+    $source = $kind === 'entry' ? $this->source : new Source('default', taxonomy: 'tags');
+
+    expect(eloquentCost($source)['decodes'])->toBe(150);
+})->with(['entry', 'term']);
+
+it('reads content that a model casts its own way', function (): void {
+    config(['statamic.eloquent-driver.entries.model' => ArrayCastEntryModel::class]);
+    app()->bind('statamic.eloquent.entries.model', fn (): string => ArrayCastEntryModel::class);
+    ($this->makeEntry)('example', ['meta_priority' => 0.3]);
+
+    expect(eloquentSitemapUrls($this->source)[0]->priority)->toBe(0.3);
+});
